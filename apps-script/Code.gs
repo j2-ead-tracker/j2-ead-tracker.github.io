@@ -18,10 +18,10 @@ const MAX_WRITES_PER_MINUTE = 30;
 
 const COLS = ["id", "created_at", "updated_at", "last_checked", "block", "receipt_date", "filed_date",
   "state", "app_type", "service_center", "asc", "bio_date", "bio_code", "status", "approval_date",
-  "expedite", "hidden", "flagged", "source"];
+  "expedite", "hidden", "flagged", "source", "country"];
 const PUBLIC_COLS = ["id", "last_checked", "block", "receipt_date", "filed_date", "state",
-  "app_type", "service_center", "asc", "bio_date", "bio_code", "status", "approval_date", "expedite", "source"];
-const EDITABLE = ["filed_date", "state", "app_type", "service_center", "asc", "bio_date", "bio_code",
+  "app_type", "service_center", "asc", "bio_date", "bio_code", "status", "approval_date", "expedite", "source", "country"];
+const EDITABLE = ["filed_date", "state", "country", "app_type", "service_center", "asc", "bio_date", "bio_code",
   "status", "approval_date", "expedite"];
 
 const STATUS_STAGE = {
@@ -49,6 +49,8 @@ const ASCS = {
   UT: "Salt Lake City", VA: "Alexandria|Norfolk", VI: "St Croix|St Thomas", VT: "Burlington",
   WA: "Seattle|Spokane|Yakima", WI: "Milwaukee", WV: "Charleston", WY: "Casper"
 };
+const COUNTRIES = ["Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burma (Myanmar)", "Burundi", "Cabo Verde", "Cambodia", "Cameroon", "Canada", "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros", "Congo (Democratic Republic)", "Congo (Republic)", "Costa Rica", "Cote d'Ivoire", "Croatia", "Cuba", "Cyprus", "Czechia", "Denmark", "Djibouti", "Dominica", "Dominican Republic", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia", "Fiji", "Finland", "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Honduras", "Hong Kong", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati", "Kosovo", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Macau", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Korea", "North Macedonia", "Norway", "Oman", "Pakistan", "Palau", "Palestine", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia", "Rwanda", "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Korea", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria", "Taiwan", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "Uruguay", "Uzbekistan", "Vanuatu", "Vatican City", "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe"];
+
 const ASC_SET = (function () {
   const s = { "": true, OTHER: true };
   Object.keys(ASCS).forEach(st => ASCS[st].split("|").forEach(c => { s[c + ", " + st] = true; }));
@@ -190,7 +192,7 @@ function checkin_(id) {
 function validate_(d) {
   const s = k => (d[k] === undefined || d[k] === null ? "" : String(d[k]).trim());
   const rec = {};
-  ["block", "receipt_date", "filed_date", "state", "app_type", "service_center", "asc", "bio_date",
+  ["block", "receipt_date", "filed_date", "state", "country", "app_type", "service_center", "asc", "bio_date",
     "bio_code", "status", "approval_date", "expedite"].forEach(k => { rec[k] = s(k); });
   const today = today_();
   const fail = msg => ({ ok: false, error: msg });
@@ -200,6 +202,7 @@ function validate_(d) {
   if (rec.filed_date && (!isDate_(rec.filed_date) || rec.filed_date > rec.receipt_date || rec.filed_date < addDays_(rec.receipt_date, -90))) return fail("Check your filed date. It should be on or before the receipt date.");
   if (STATES.indexOf(rec.state) < 0) return fail("Choose your state.");
   if (["initial", "renewal"].indexOf(rec.app_type) < 0) return fail("Choose initial or renewal.");
+  if (rec.country && COUNTRIES.indexOf(rec.country) < 0) return fail("Choose a country from the list.");
   if (CENTERS.indexOf(rec.service_center) < 0) return fail("Choose a service center, or Unknown.");
   if (!ASC_SET[rec.asc]) return fail("Choose a biometrics location from the list.");
   if (rec.bio_date && (!isDate_(rec.bio_date) || rec.bio_date < rec.receipt_date || rec.bio_date > addDays_(today, 180))) return fail("Check your biometrics date.");
