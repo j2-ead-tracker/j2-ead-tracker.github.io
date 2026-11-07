@@ -369,7 +369,7 @@
         <td class="b">${esc(e.block)}${e.source === "reddit" ? '<span class="src" title="Imported from a public Reddit thread">Reddit</span>' : ""}</td>
         <td>${fmtDate(e.receipt_date)}</td>
         <td>${esc(e.state)}</td>
-        <td>${esc(e.service_center === "UNK" ? "Unknown" : e.service_center)}</td>
+        <td>${esc(CENTER_SHORT[e.service_center] || e.service_center)}</td>
         <td>${e.bio_date ? fmtShort(e.bio_date) : "—"}${e.asc && e.asc !== "OTHER" ? `<br><span class="src">${esc(e.asc)}</span>` : ""}</td>
         <td>${esc(typeName(e.app_type))}</td>
         <td>${statusPill(e)}</td>
@@ -438,7 +438,7 @@
             const d = waitDays(e, today);
             return `<tr${e.block === block ? ' class="row-hl"' : ""}>
               <td class="b">${esc(e.block)}</td><td>${fmtDate(e.receipt_date)}</td><td>${esc(e.state)}</td>
-              <td>${esc(e.service_center === "UNK" ? "Unknown" : e.service_center)}</td><td>${statusPill(e)}</td>
+              <td>${esc(CENTER_SHORT[e.service_center] || e.service_center)}</td><td>${statusPill(e)}</td>
               <td>${fmtDate(e.approval_date)}</td><td>${isApproved(e) ? d : isWaiting(e) ? `${d} so far` : "—"}</td></tr>`;
           }).join("")}</tbody>
         </table></div>
