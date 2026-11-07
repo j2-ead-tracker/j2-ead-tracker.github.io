@@ -2,7 +2,7 @@
 window.TRACKER_CONFIG = {
   // Paste your Google Apps Script web app URL here (ends with /exec).
   // Leave empty to run the site in demo mode with made-up sample cases.
-  API_URL: "",
+  API_URL: "https://script.google.com/macros/s/AKfycbwO4FDvXrOBf0AHArnoIjGgJ83W2xs3ipN1iYKTsHbcRLEGPWBho9-SHF9keLx48OR2/exec",
 
   // Optional: Cloudflare Turnstile site key for spam protection.
   // If you set this, also set TURNSTILE_SECRET in Apps Script > Project Settings > Script properties.
