@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>J-2 EAD Tracker: community I-765 (C05) timelines</title>
+  <meta name="description" content="Community-reported J-2 EAD (I-765, category C05) timelines. See which receipt blocks are being approved and estimate your wait.">
+  <script>
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem("theme"); } catch (e) {}
+      if (t !== "light" && t !== "dark") t = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", t);
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%2323774f%22/%3E%3Ctext x=%2216%22 y=%2222%22 font-family=%22Arial%22 font-weight=%22700%22 font-size=%2214%22 fill=%22white%22 text-anchor=%22middle%22%3EJ2%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="#top">J-2 EAD Tracker</a>
+      <nav class="topnav" aria-label="Sections">
+        <a href="#estimate">Your estimate</a>
+        <a href="#blocks">Blocks</a>
+        <a href="#cases">All cases</a>
+        <a href="#guide">Guide</a>
+      </nav>
+      <div class="topbar-actions">
+        <button class="theme-btn" type="button" id="themeBtn" aria-label="Switch to dark mode">
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        </button>
+        <button class="btn btn-primary btn-sm" type="button" data-open-case>Add or update my case</button>
+      </div>
+    </div>
+  </header>
+
+  <div id="demoBanner" class="demo-banner" hidden>
+    <div class="wrap">Demo mode. These are made-up sample cases so you can try the site. Real data appears once the Google Sheet is connected.</div>
+  </div>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="wrap hero-grid">
+          <h1>Where is the J-2 EAD line right now?</h1>
+          <p class="lede">A community tracker for I-765 work permit applications under category C05. People share their receipt block and dates, so everyone can see which blocks are being approved and how long the wait really is.</p>
+          <div class="hero-actions">
+            <button class="btn btn-primary" type="button" data-open-case>Add or update my case</button>
+            <a class="btn" href="#estimate">Estimate my wait</a>
+          </div>
+
+        <div class="ticket" aria-live="polite">
+          <p class="ticket-label">Highest receipt block approved so far</p>
+          <p class="ticket-number" id="ticketNumber"><span class="ticket-prefix">IOE09</span><span class="ticket-block" id="ticketBlock">···</span><span class="ticket-tail">•••••</span></p>
+          <p class="ticket-note" id="ticketNote">Loading cases…</p>
+        </div>
+      </div>
+
+      <div class="wrap">
+        <div class="strip-head">
+          <p class="strip-summary" id="summaryLine"></p>
+          <ul class="legend" aria-label="Legend">
+            <li><span class="sw sw-done"></span>All approved</li>
+            <li><span class="sw sw-some"></span>Some approved</li>
+            <li><span class="sw sw-wait"></span>Still waiting</li>
+            <li><span class="sw sw-none"></span>No reports</li>
+          </ul>
+        </div>
+        <div class="strip-scroll">
+          <div class="strip" id="blockStrip" role="list" aria-label="Receipt blocks"></div>
+        </div>
+        <p class="hint">Each square is one receipt block, the 3 digits after IOE09. Tap a block to see its cases.</p>
+      </div>
+    </section>
+
+    <section class="share-band" id="share" aria-labelledby="shareTitle">
+      <div class="wrap share-grid">
+        <div>
+          <h2 id="shareTitle">More people, more data, more accurate estimates</h2>
+          <p id="shareCount">Every case added makes the estimates better for everyone, including you. Share the tracker with friends and groups who are waiting for their J-2 EAD.</p>
+        </div>
+        <div>
+            <div class="share" data-share>
+              <button class="btn btn-primary btn-sm" type="button" data-share-native hidden>Share</button>
+              <button class="btn btn-sm" type="button" data-share-copy>Copy link</button>
+              <a class="btn btn-sm" data-share-net="whatsapp" target="_blank" rel="noopener">WhatsApp</a>
+              <a class="btn btn-sm" data-share-net="facebook" target="_blank" rel="noopener">Facebook</a>
+              <a class="btn btn-sm" data-share-net="reddit" target="_blank" rel="noopener">Reddit</a>
+              <a class="btn btn-sm" data-share-net="telegram" target="_blank" rel="noopener">Telegram</a>
+            </div>
+            <p class="share-note" data-share-note aria-live="polite"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="estimate">
+      <div class="wrap">
+        <h2>Estimate your wait</h2>
+        <p class="section-intro">Enter your block and receipt date. You'll be compared with cases received around the same time, including people who are still waiting.</p>
+        <form class="estimate-form" id="estimateForm" novalidate>
+          <div class="field">
+            <label for="estBlock">Receipt block</label>
+            <div class="block-input">
+              <span aria-hidden="true">IOE09</span>
+              <input id="estBlock" name="block" inputmode="numeric" pattern="\d{3}" maxlength="3" placeholder="381" autocomplete="off" required>
+            </div>
+          </div>
+          <div class="field">
+            <label for="estReceipt">Receipt date</label>
+            <input id="estReceipt" name="receipt_date" type="date" required>
+          </div>
+          <button class="btn btn-primary" type="submit">Show my estimate</button>
+          <p class="field-error" id="estError" role="alert"></p>
+        </form>
+        <div id="estimateResult" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="section" id="odds">
+      <div class="wrap">
+        <h2>How long approvals take</h2>
+        <p class="section-intro">The line shows the share of applicants approved by each day after their receipt date. People who are still waiting count too, so the wait doesn't look shorter than it is.</p>
+        <div class="chart" id="kmChart"></div>
+        <dl class="milestones" id="milestones"></dl>
+        <p class="hint">Federal holidays can slow approvals: Thanksgiving (Nov 26), Christmas (Dec 25) and New Year's Day (Jan 1).</p>
+      </div>
+    </section>
+
+    <section class="section" id="blocks">
+      <div class="wrap">
+        <h2>Receipt blocks</h2>
+        <p class="section-intro">Blocks roughly follow the order USCIS received cases. A higher block usually means a later filing.</p>
+        <div class="table-scroll">
+          <table class="data" id="blockTable">
+            <thead><tr><th scope="col">Block</th><th scope="col">Cases</th><th scope="col">Approved</th><th scope="col">Waiting</th><th scope="col">Median days to approval</th><th scope="col">Latest approval</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="cases">
+      <div class="wrap">
+        <h2>All cases</h2>
+        <form class="filters" id="filters" aria-label="Filter cases">
+          <label>Block <input name="block" inputmode="numeric" maxlength="3" placeholder="Any" autocomplete="off"></label>
+          <label>Service center <select name="service_center"><option value="">Any</option></select></label>
+          <label>State <select name="state"><option value="">Any</option></select></label>
+          <label>Type <select name="app_type"><option value="">Any</option></select></label>
+          <label>Status <select name="group"><option value="">Any</option><option value="waiting">Waiting</option><option value="approved">Approved</option><option value="denied">Denied</option></select></label>
+          <label>Expedite <select name="expedite"><option value="">Any</option></select></label>
+          <button class="btn btn-sm btn-ghost" type="reset">Clear</button>
+        </form>
+        <p class="hint" id="caseCount"></p>
+        <div class="table-scroll">
+          <table class="data" id="caseTable">
+            <thead><tr>
+              <th scope="col">Block</th><th scope="col">Receipt date</th><th scope="col">State</th><th scope="col">Service center</th>
+              <th scope="col">Biometrics</th><th scope="col">Type</th><th scope="col">Status</th><th scope="col">Approved</th>
+              <th scope="col">Days</th><th scope="col">Expedite</th><th scope="col">Last checked</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <button class="btn btn-sm" type="button" id="showMore" hidden>Show more</button>
+      </div>
+    </section>
+
+    <section class="section" id="guide">
+      <div class="wrap">
+        <h2>Where to find your details</h2>
+        <div class="guide-grid">
+          <div>
+            <h3>Service center and biometrics location are different places</h3>
+            <p>Your <strong>service center</strong> is the USCIS office that reviews and decides your case. You never visit it. Your <strong>biometrics location (ASC)</strong> is where you went for fingerprints and a photo, and that's all it does. They're often in different states. For example, your case might be decided at the Potomac Service Center while your biometrics were taken in York, PA.</p>
+            <p>Your notice may show an older 3-letter code for the service center. YSC means Potomac, SRC means Texas, LIN means Nebraska, WAC means California, EAC means Vermont, and MSC means the National Benefits Center.</p>
+            <p>Both appear on your biometrics appointment notice. The service center is in the top-right box labeled "Service Center." Your ASC is listed under "Application Support Center."</p>
+            <p>Your receipt date isn't on that notice. It's the "Received date" on your receipt notice.</p>
+            <p id="codes">The "Code" box (number 5 on the illustration) tells the ASC which biometrics to collect, such as fingerprints, a photo and a signature. <a href="https://citizenpath.com/uscis-biometrics-appointment/" target="_blank" rel="noopener">Learn what each code means</a>.</p>
+          </div>
+          <figure class="notice" aria-label="Simplified illustration of a biometrics appointment notice">
+            <p class="notice-flag">Simplified illustration, not an actual USCIS notice</p>
+            <div class="notice-head"><span>U.S. Citizenship and Immigration Services</span><strong>Form I-797C, Notice of Action</strong></div>
+            <div class="notice-grid">
+              <div class="nc span2"><strong>ASC appointment notice</strong></div>
+              <div class="nc"><small>Case type</small>I765</div>
+              <div class="nc"><small>Notice date</small>MM/DD/YY</div>
+              <div class="nc span2 mark"><i>1</i><small>Application/petition/request number</small><span class="mono">IOE09<b>123</b>•••••</span></div>
+              <div class="nc"><small>USCIS A#</small>•••••</div>
+              <div class="nc mark"><i>5</i><small>Code</small>3</div>
+              <div class="nc"><small>Account number</small>•••••</div>
+              <div class="nc"><small>TCR</small>&nbsp;</div>
+              <div class="nc mark"><i>2</i><small>Service center</small>YSC</div>
+              <div class="nc"><small>Page</small>1 of 2</div>
+            </div>
+            <div class="notice-lines"><span style="width:45%"></span><span style="width:38%"></span></div>
+            <div class="notice-asc">
+              <div class="mark"><i>3</i><small>Application support center</small>USCIS [City]<br>[City], [ST]</div>
+              <div class="mark"><i>4</i><small>Date and time of appointment</small>MM/DD/YYYY<br>10:00AM</div>
+            </div>
+            <div class="notice-lines"><span style="width:92%"></span><span style="width:85%"></span><span style="width:70%"></span></div>
+            <figcaption>
+              <ol class="notice-key">
+                <li>Receipt block: only the 3 digits after IOE09</li>
+                <li>Service center: the office deciding your case</li>
+                <li>Biometrics location: where you gave fingerprints</li>
+                <li>Biometrics date: your appointment date</li>
+                <li>Biometrics code: what the ASC collects</li>
+              </ol>
+            </figcaption>
+          </figure>
+        </div>
+
+
+      </div>
+    </section>
+
+    <section class="section" id="privacy">
+      <div class="wrap narrow">
+        <h2>How your data is handled</h2>
+        <ul class="plain-list">
+          <li><strong>No accounts, no emails, no receipt numbers.</strong> We only ask for the 3 digits after IOE09. Nothing on the form can identify you.</li>
+          <li><strong>Updating your case:</strong> choose "Add or update my case," enter the same details you used before, and pick your entry from the closest matches.</li>
+          <li><strong>Why this is safe:</strong> since there are no accounts, every change is logged and can be reverted. Your block and receipt date are locked after the first entry. Unusual changes, like an approved case switching back to pending, are flagged for review.</li>
+          <li><strong>Want your entry removed or corrected?</strong> Email <a data-contact-email href="mailto:j2eadtracker@gmail.com">j2eadtracker@gmail.com</a> with your block and receipt date.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <p>Community-reported data. Not affiliated with USCIS. Not legal advice.</p>
+      <p><span id="footerLinks"></span> &nbsp; <span id="siteVersion"></span></p>
+    </div>
+  </footer>
+
+  <!-- Add or update dialog -->
+  <dialog id="caseDialog" aria-labelledby="caseDialogTitle">
+    <div class="dlg">
+      <div class="dlg-head">
+        <h2 id="caseDialogTitle">Add or update my case</h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close">×</button>
+      </div>
+
+      <div class="step" id="stepAsk">
+        <p>Have you added your case here before?</p>
+        <div class="choice-row">
+          <button class="btn btn-primary" type="button" id="askYes">Yes, update it</button>
+          <button class="btn" type="button" id="askNo">No, add it</button>
+        </div>
+      </div>
+
+      <div class="step" id="stepFind" hidden>
+        <p>Enter the details you used before. We'll show the closest entries.</p>
+        <form id="findForm" class="form-grid" novalidate>
+          <div class="field">
+            <label for="findBlock">Receipt block</label>
+            <div class="block-input"><span aria-hidden="true">IOE09</span><input id="findBlock" name="block" inputmode="numeric" maxlength="3" placeholder="381" required autocomplete="off"></div>
+          </div>
+          <div class="field">
+            <label for="findReceipt">Receipt date</label>
+            <input id="findReceipt" name="receipt_date" type="date" required>
+          </div>
+          <div class="field">
+            <label for="findState">State</label>
+            <select id="findState" name="state"><option value="">Select</option></select>
+          </div>
+          <div class="field">
+            <label for="findType">Initial or renewal</label>
+            <select id="findType" name="app_type"><option value="">Select</option></select>
+          </div>
+          <div class="form-actions span-all">
+            <button class="btn btn-primary" type="submit">Find my entry</button>
+            <p class="field-error" id="findError" role="alert"></p>
+          </div>
+        </form>
+        <div id="matchList" aria-live="polite"></div>
+      </div>
+
+      <div class="step" id="stepForm" hidden>
+        <p id="formIntro"></p>
+        <form id="caseForm" class="form-grid" novalidate>
+          <div class="field">
+            <label for="fBlock">Receipt block</label>
+            <div class="block-input"><span aria-hidden="true">IOE09</span><input id="fBlock" name="block" inputmode="numeric" maxlength="3" placeholder="381" required autocomplete="off"></div>
+            <p class="help">Only the 3 digits after IOE09.</p>
+          </div>
+          <div class="field">
+            <label for="fReceipt">Receipt date</label>
+            <input id="fReceipt" name="receipt_date" type="date" required>
+            <p class="help">"Received date" on your receipt notice.</p>
+          </div>
+          <div class="field">
+            <label for="fFiled">Filed/delivered date <span class="opt">optional</span></label>
+            <input id="fFiled" name="filed_date" type="date">
+            <p class="help">The day USCIS got your package.</p>
+          </div>
+          <div class="field">
+            <label for="fState">State</label>
+            <select id="fState" name="state" required><option value="">Select</option></select>
+          </div>
+          <div class="field">
+            <label for="fType">Initial or renewal</label>
+            <select id="fType" name="app_type" required><option value="">Select</option></select>
+          </div>
+          <div class="field">
+            <label for="fCenter">Service center</label>
+            <select id="fCenter" name="service_center" required><option value="">Select</option></select>
+            <p class="help">Your notice may show a code like YSC (Potomac). This is not where you did your biometrics. <a href="#guide" target="_blank" rel="noopener">Where do I find this?</a></p>
+          </div>
+          <div class="field">
+            <label for="fAsc">Biometrics location (ASC) <span class="opt">optional</span></label>
+            <select id="fAsc" name="asc"><option value="">Not yet / not sure</option></select>
+          </div>
+          <div class="field">
+            <label for="fBio">Biometrics date <span class="opt">optional</span></label>
+            <input id="fBio" name="bio_date" type="date">
+          </div>
+          <div class="field">
+            <label for="fCode">Biometrics code <span class="opt">optional</span></label>
+            <select id="fCode" name="bio_code"><option value="">Select</option></select>
+            <p class="help">Top right of your biometrics notice. <a href="https://citizenpath.com/uscis-biometrics-appointment/" target="_blank" rel="noopener">What's this?</a></p>
+          </div>
+          <div class="field">
+            <label for="fStatus">Current status</label>
+            <select id="fStatus" name="status" required><option value="">Select</option></select>
+            <p class="help">Paper filers who see "Case Accepted By the USCIS Lockbox" should pick Case Was Received.</p>
+          </div>
+          <div class="field" id="approvalField" hidden>
+            <label for="fApproval">Approval date</label>
+            <input id="fApproval" name="approval_date" type="date">
+            <p class="help">The first day you saw Case Was Approved, New Card Is Being Produced, or the approval notice in your account.</p>
+          </div>
+          <div class="field">
+            <label for="fExpedite">Expedite requested?</label>
+            <select id="fExpedite" name="expedite" required></select>
+          </div>
+          <div class="hp" aria-hidden="true">
+            <label for="fWebsite">Leave this empty</label>
+            <input id="fWebsite" name="website" tabindex="-1" autocomplete="off">
+          </div>
+          <div class="span-all" id="turnstileBox"></div>
+          <div class="form-actions span-all">
+            <button class="btn btn-primary" type="submit" id="caseSubmit">Add my case</button>
+            <p class="field-error" id="formError" role="alert"></p>
+          </div>
+        </form>
+      </div>
+
+      <div class="step" id="stepDone" hidden>
+        <p id="doneText"></p>
+        <div class="done-share">
+          <p><strong>Help others, and yourself.</strong> More people, more data, more accurate estimates. Share the tracker with friends who are waiting too.</p>
+            <div class="share" data-share>
+              <button class="btn btn-primary btn-sm" type="button" data-share-native hidden>Share</button>
+              <button class="btn btn-sm" type="button" data-share-copy>Copy link</button>
+              <a class="btn btn-sm" data-share-net="whatsapp" target="_blank" rel="noopener">WhatsApp</a>
+              <a class="btn btn-sm" data-share-net="facebook" target="_blank" rel="noopener">Facebook</a>
+              <a class="btn btn-sm" data-share-net="reddit" target="_blank" rel="noopener">Reddit</a>
+              <a class="btn btn-sm" data-share-net="telegram" target="_blank" rel="noopener">Telegram</a>
+            </div>
+            <p class="share-note" data-share-note aria-live="polite"></p>
+        </div>
+        <button class="btn" type="button" data-close>Done</button>
+      </div>
+    </div>
+  </dialog>
+
+
+  <script src="config.js"></script>
+  <script src="assets/data.js"></script>
+  <script src="assets/stats.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
