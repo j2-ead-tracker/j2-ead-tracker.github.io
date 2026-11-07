@@ -5,6 +5,7 @@
   const API = (CONFIG.API_URL || "").trim();
   const DEMO = !API;
   const PAGE_SIZE = 50;
+  const APP_VERSION = "1.0.0";
 
   let entries = [];
   let shown = PAGE_SIZE;
@@ -58,12 +59,6 @@
     fillSelect(f.app_type, APP_TYPES);
     fillSelect(f.expedite, EXPEDITE);
 
-    const reasons = $("#reportReasons");
-    REPORT_REASONS.forEach(([v, label], i) => {
-      const l = document.createElement("label");
-      l.innerHTML = `<input type="radio" name="reason" value="${v}" ${i === 0 ? "checked" : ""}> ${esc(label)}`;
-      reasons.appendChild(l);
-    });
 
     const today = todayISO();
     for (const id of ["#fReceipt", "#fFiled", "#fApproval", "#findReceipt", "#estReceipt"]) $(id).max = today;
@@ -97,9 +92,15 @@
   function setupFooter() {
     const parts = [];
     if (CONFIG.CONTACT_EMAIL) parts.push(`<a href="mailto:${esc(CONFIG.CONTACT_EMAIL)}">Contact</a>`);
-    if (CONFIG.GITHUB_URL) parts.push(`<a href="${esc(CONFIG.GITHUB_URL)}">Source on GitHub</a>`);
     if (CONFIG.DONATION_URL) parts.push(`<a href="${esc(CONFIG.DONATION_URL)}">Buy the maintainer a coffee</a>`);
     $("#footerLinks").innerHTML = parts.join(" &nbsp; ");
+    $("#siteVersion").textContent = `Version ${APP_VERSION}`;
+    if (CONFIG.CONTACT_EMAIL) {
+      $$("[data-contact-email]").forEach(a => {
+        a.href = `mailto:${CONFIG.CONTACT_EMAIL}?subject=${encodeURIComponent("J-2 EAD Tracker: remove or correct my entry")}`;
+        a.textContent = CONFIG.CONTACT_EMAIL;
+      });
+    }
   }
 
   /* ---------- Data ---------- */
@@ -184,6 +185,7 @@
 
   function renderAll(failed = false) {
     renderHero(failed);
+    renderShareCount();
     renderStrip();
     renderKM();
     renderBlocks();
@@ -377,10 +379,9 @@
         <td>${daysText}</td>
         <td>${e.expedite === "yes" ? "Yes" : "No"}</td>
         <td>${isWaiting(e) ? fmtShort(e.last_checked) : "—"}</td>
-        <td><button class="link-btn" type="button" data-report="${esc(e.id)}">Report</button></td>
       </tr>`;
     });
-    $("#caseTable tbody").innerHTML = rows.length ? rows.join("") : `<tr><td colspan="12">No cases match these filters.</td></tr>`;
+    $("#caseTable tbody").innerHTML = rows.length ? rows.join("") : `<tr><td colspan="11">No cases match these filters.</td></tr>`;
     $("#showMore").hidden = list.length <= shown;
   }
 
@@ -555,7 +556,7 @@
     $("#fBlock").readOnly = locked;
     $("#fReceipt").readOnly = locked;
     $("#formIntro").textContent = locked
-      ? "Update what changed. Block and receipt date are locked. If they're wrong, use Report on your entry."
+      ? `Update what changed. Block and receipt date are locked. If they're wrong, email ${CONFIG.CONTACT_EMAIL || "us"} and we'll fix them.`
       : "Fill in what you know. Fields marked optional can be added later.";
     $("#caseSubmit").textContent = locked ? "Save changes" : "Add my case";
     toggleApproval();
@@ -659,35 +660,6 @@
     }
   }
 
-  /* ---------- Report ---------- */
-
-  let reportId = null;
-  function openReport(id) {
-    const e = entries.find(x => x.id === id);
-    if (!e) return;
-    reportId = id;
-    $("#reportWhich").textContent = `Block ${e.block}, received ${fmtDate(e.receipt_date)}, ${e.state}.`;
-    $("#reportError").textContent = "";
-    $("#reportForm").reason[0].checked = true;
-    $("#reportDialog").showModal();
-  }
-  async function onReport(ev) {
-    ev.preventDefault();
-    const reason = $("#reportForm").reason.value;
-    const btn = $("#reportForm button[type=submit]");
-    btn.disabled = true;
-    try {
-      await apiPost("report", { id: reportId, reason });
-      $("#reportError").textContent = "";
-      $("#reportWhich").textContent = "Report sent. Thanks for keeping the data clean.";
-      setTimeout(() => $("#reportDialog").close(), 1400);
-    } catch (err) {
-      $("#reportError").textContent = err.message || "Couldn't send. Try again.";
-    } finally {
-      btn.disabled = false;
-    }
-  }
-
   /* ---------- API ---------- */
 
   async function apiPost(action, payload) {
@@ -751,18 +723,69 @@
     if (window.turnstile && turnstileId !== null) window.turnstile.reset(turnstileId);
   }
 
-  /* ---------- CSV ---------- */
+  /* ---------- Theme ---------- */
 
-  function downloadCsv() {
-    const cols = ["block", "receipt_date", "filed_date", "state", "app_type", "service_center", "asc", "bio_date", "bio_code", "status", "approval_date", "expedite", "last_checked", "source"];
-    const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const lines = [cols.join(",")].concat(filteredCases().map(e => cols.map(c => q(e[c])).join(",")));
-    const blob = new Blob([lines.join("\n")], { type: "text/csv" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `j2-ead-cases-${todayISO()}.csv`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  function setupTheme() {
+    const btn = $("#themeBtn");
+    const apply = t => {
+      document.documentElement.setAttribute("data-theme", t);
+      btn.setAttribute("aria-label", t === "dark" ? "Switch to light mode" : "Switch to dark mode");
+      btn.title = btn.getAttribute("aria-label");
+    };
+    apply(document.documentElement.getAttribute("data-theme") || "light");
+    btn.addEventListener("click", () => {
+      const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      apply(next);
+      try { localStorage.setItem("theme", next); } catch { /* not saved, fine */ }
+    });
+    if (window.matchMedia) {
+      matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ev => {
+        let saved = null;
+        try { saved = localStorage.getItem("theme"); } catch { /* ignore */ }
+        if (!saved) apply(ev.matches ? "dark" : "light");
+      });
+    }
+  }
+
+  /* ---------- Sharing ---------- */
+
+  const SHARE_URL = (CONFIG.SITE_URL || `${location.origin}${location.pathname}`).replace(/index\.html$/, "");
+  const SHARE_TEXT = "Waiting for your J-2 EAD? Add your case to this community tracker and see which receipt blocks are being approved. More cases mean better estimates for everyone.";
+
+  function setupShare() {
+    const u = encodeURIComponent(SHARE_URL);
+    const t = encodeURIComponent(SHARE_TEXT);
+    const links = {
+      whatsapp: `https://wa.me/?text=${t}%20${u}`,
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${u}`,
+      reddit: `https://www.reddit.com/submit?url=${u}&title=${encodeURIComponent("J-2 EAD Tracker: community I-765 (C05) timelines")}`,
+      telegram: `https://t.me/share/url?url=${u}&text=${t}`
+    };
+    $$("[data-share]").forEach(box => {
+      const note = box.parentElement.querySelector("[data-share-note]");
+      const say = msg => { if (note) { note.textContent = msg; setTimeout(() => { note.textContent = ""; }, 3000); } };
+      $$("[data-share-net]", box).forEach(a => { a.href = links[a.dataset.shareNet]; });
+      const nativeBtn = $("[data-share-native]", box);
+      if (navigator.share) {
+        nativeBtn.hidden = false;
+        nativeBtn.addEventListener("click", () => {
+          navigator.share({ title: "J-2 EAD Tracker", text: SHARE_TEXT, url: SHARE_URL }).catch(() => {});
+        });
+      }
+      $("[data-share-copy]", box).addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(SHARE_URL);
+          say("Link copied. Paste it in your group chat or a post.");
+        } catch {
+          window.prompt("Copy this link:", SHARE_URL);
+        }
+      });
+    });
+  }
+
+  function renderShareCount() {
+    if (!entries.length || DEMO) return;
+    $("#shareCount").textContent = `${entries.length} cases so far. Every case added makes the estimates better for everyone, including you. Share the tracker with friends and groups who are waiting for their J-2 EAD.`;
   }
 
   /* ---------- Wiring ---------- */
@@ -786,11 +809,6 @@
     }
     $$("dialog [data-close]").forEach(b => b.addEventListener("click", () => b.closest("dialog").close()));
     $$("[data-close-link]").forEach(a => a.addEventListener("click", () => dlg().close()));
-    $("#caseTable").addEventListener("click", ev => {
-      const r = ev.target.closest("[data-report]");
-      if (r) openReport(r.dataset.report);
-    });
-    $("#reportForm").addEventListener("submit", onReport);
 
     const filters = $("#filters");
     filters.addEventListener("input", () => { shown = PAGE_SIZE; renderCases(); });
@@ -798,9 +816,10 @@
     filters.addEventListener("reset", () => setTimeout(() => { shown = PAGE_SIZE; renderCases(); }));
     filters.block.addEventListener("input", ev => { ev.target.value = ev.target.value.replace(/\D/g, "").slice(0, 3); });
     $("#showMore").addEventListener("click", () => { shown += PAGE_SIZE; renderCases(); });
-    $("#downloadCsv").addEventListener("click", downloadCsv);
   }
 
+  setupTheme();
+  setupShare();
   setupSelects();
   setupFooter();
   setupEstimate();

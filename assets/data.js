@@ -45,12 +45,6 @@ const STATUS_BY_V = Object.fromEntries(STATUSES.map(s => [s.v, s]));
 const APP_TYPES = [["initial","Initial"],["renewal","Renewal"]];
 const EXPEDITE = [["no","No"],["yes","Yes"]];
 const BIO_CODES = [["1","Code 1"],["2","Code 2"],["3","Code 3"],["5","Code 5"],["unsure","Not sure"]];
-const REPORT_REASONS = [
-  ["duplicate","It's a duplicate entry"],
-  ["wrong_info","The details look wrong"],
-  ["remove","It's my entry and I want it removed"],
-  ["spam","It's spam or fake"]
-];
 
 // Application Support Centers (biometrics locations), grouped by state.
 const ASCS = {

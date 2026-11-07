@@ -17,10 +17,10 @@
   --danger: #b3261e;
   --radius: 10px;
   --font: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  color-scheme: light dark;
+  color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
+:root[data-theme="dark"] {
+  color-scheme: dark;
     --ink: #e6eaf0;
     --ink-2: #a9b3c1;
     --ink-3: #7f8a99;
@@ -37,7 +37,6 @@
     --act-ink: #0f141b;
     --act-bg: #1d2742;
     --danger: #ff8a80;
-  }
 }
 
 * { box-sizing: border-box; }
@@ -203,7 +202,6 @@ table.data td.num, table.data th.num { text-align: right; }
 .link-btn { border: 0; background: none; color: var(--ink-3); font: inherit; font-size: .85rem; text-decoration: underline; cursor: pointer; padding: 4px; }
 .link-btn:hover { color: var(--ink); }
 
-.cases-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-top: 12px; }
 .filters label { display: flex; flex-direction: column; gap: 4px; font-size: .85rem; }
 .filters input, .filters select { min-height: 38px; width: auto; min-width: 110px; }
@@ -265,3 +263,23 @@ dialog::backdrop { background: rgba(10, 15, 22, .5); }
 .radio-list legend { font-weight: 600; margin-bottom: 8px; }
 .radio-list label { display: flex; gap: 10px; align-items: center; padding: 6px 0; }
 .radio-list input { width: 18px; min-height: 18px; height: 18px; }
+
+/* Theme toggle */
+.theme-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line-2); background: var(--card); color: var(--ink); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex: none; }
+.theme-btn:hover { border-color: var(--ink-3); }
+.theme-btn svg { width: 20px; height: 20px; }
+.theme-btn .icon-sun { display: none; }
+:root[data-theme="dark"] .theme-btn .icon-sun { display: block; }
+:root[data-theme="dark"] .theme-btn .icon-moon { display: none; }
+.topbar-actions { display: flex; align-items: center; gap: 10px; }
+
+/* Share */
+.share-band { background: var(--go-bg); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 32px 0; }
+.share-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) auto; gap: 16px 40px; align-items: center; }
+@media (max-width: 760px) { .share-grid { grid-template-columns: 1fr; } }
+.share-band h2 { margin-bottom: .3em; }
+.share-band p { margin: 0; max-width: 60ch; color: var(--ink); }
+.share { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.share-note { font-size: .9rem; color: var(--go); font-weight: 600; min-height: 1.3em; margin: 6px 0 0; }
+.done-share { margin: 18px 0; padding: 16px; border-radius: var(--radius); background: var(--go-bg); }
+.done-share p { margin: 0 0 12px; }
