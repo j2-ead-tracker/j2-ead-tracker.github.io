@@ -30,7 +30,7 @@ const STATUS_STAGE = {
   transferred: 3, approved: 10, card_produced: 11, card_mailed: 12, card_delivered: 13, denied: 20
 };
 const STATES = "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY PR GU VI MP AS".split(" ");
-const CENTERS = ["PSC", "TSC", "NSC", "CSC", "VSC", "NBC", "UNK"];
+const CENTERS = ["PSC", "TSC", "NSC", "CSC", "VSC", "NBC", "HART", "UNK"];
 const BIO_CODES = ["", "1", "2", "3", "5", "unsure"];
 const REPORT_REASONS = ["duplicate", "wrong_info", "remove", "spam"];
 const ASCS = {
