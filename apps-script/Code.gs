@@ -11,7 +11,6 @@
  * Tabs:
  *  entries  - one row per case. Set "hidden" to TRUE to hide a row from the site.
  *  log      - every change with the values before and after, for reverting.
- *  reports  - reports sent from the site.
  */
 
 const TZ = "America/New_York";
@@ -20,7 +19,7 @@ const MAX_WRITES_PER_MINUTE = 30;
 const COLS = ["id", "created_at", "updated_at", "last_checked", "block", "receipt_date", "filed_date",
   "state", "app_type", "service_center", "asc", "bio_date", "bio_code", "status", "approval_date",
   "expedite", "hidden", "flagged", "source"];
-const PUBLIC_COLS = ["id", "updated_at", "last_checked", "block", "receipt_date", "filed_date", "state",
+const PUBLIC_COLS = ["id", "last_checked", "block", "receipt_date", "filed_date", "state",
   "app_type", "service_center", "asc", "bio_date", "bio_code", "status", "approval_date", "expedite", "source"];
 const EDITABLE = ["filed_date", "state", "app_type", "service_center", "asc", "bio_date", "bio_code",
   "status", "approval_date", "expedite"];
@@ -32,7 +31,6 @@ const STATUS_STAGE = {
 const STATES = "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY PR GU VI MP AS".split(" ");
 const CENTERS = ["PSC", "TSC", "NSC", "CSC", "VSC", "NBC", "HART", "UNK"];
 const BIO_CODES = ["", "1", "2", "3", "5", "unsure"];
-const REPORT_REASONS = ["duplicate", "wrong_info", "remove", "spam"];
 const ASCS = {
   AK: "Anchorage", AL: "Birmingham", AR: "Fort Smith", AZ: "Phoenix|Tucson|Yuma",
   CA: "Bakersfield|Bellflower|Buena Park|El Monte|Fresno|Gardena|Imperial|La Brea|Modesto|Oakland|Oxnard|Pomona|Riverside|Sacramento|Salinas|San Diego|San Fernando|San Francisco|San Jose|San Marcos|Santa Rosa|Tustin|Wilshire",
@@ -63,7 +61,6 @@ function setup() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   ensureSheet_(ss, "entries", COLS);
   ensureSheet_(ss, "log", ["ts", "action", "id", "before", "after", "flag"]);
-  ensureSheet_(ss, "reports", ["ts", "id", "reason", "handled"]);
 }
 
 function ensureSheet_(ss, name, headers) {
@@ -113,7 +110,6 @@ function doPost(e) {
       case "create": res = create_(body.data || {}); break;
       case "update": res = update_(String(body.id || ""), body.data || {}); break;
       case "checkin": res = checkin_(String(body.id || "")); break;
-      case "report": res = report_(String(body.id || ""), String(body.reason || "")); break;
       default: res = { ok: false, error: "Unknown action." };
     }
     if (res.ok) CacheService.getScriptCache().remove("list");
@@ -188,13 +184,6 @@ function checkin_(id) {
   return { ok: true, id: id };
 }
 
-function report_(id, reason) {
-  if (REPORT_REASONS.indexOf(reason) < 0) return { ok: false, error: "Choose a reason." };
-  const exists = readAll_().rows.some(r => r.id === id);
-  if (!exists) return { ok: false, error: "That entry wasn't found." };
-  sheet_("reports").appendRow([new Date().toISOString(), id, reason, ""]);
-  return { ok: true };
-}
 
 /* ---------- Validation ---------- */
 
