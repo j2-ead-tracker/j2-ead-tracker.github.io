@@ -5,7 +5,7 @@
   const API = (CONFIG.API_URL || "").trim();
   const DEMO = !API;
   const PAGE_SIZE = 50;
-  const APP_VERSION = "1.0.0";
+  const APP_VERSION = "1.0.3";
 
   let entries = [];
   let shown = PAGE_SIZE;
@@ -51,6 +51,7 @@
     fillSelect($("#fCenter"), SERVICE_CENTERS);
     fillSelect($("#fCode"), BIO_CODES);
     fillSelect($("#fStatus"), STATUSES.map(s => [s.v, s.label]));
+    $("#statusKey").innerHTML = STATUSES.map(s => `<dt>${esc(s.label)}</dt><dd>${esc(s.help)}</dd>`).join("");
     fillSelect($("#fExpedite"), EXPEDITE, false);
 
     const f = $("#filters");
@@ -61,9 +62,9 @@
 
 
     const today = todayISO();
-    for (const id of ["#fReceipt", "#fFiled", "#fApproval", "#findReceipt", "#estReceipt"]) $(id).max = today;
+    for (const id of ["#fReceipt", "#fApproval", "#findReceipt", "#estReceipt"]) $(id).max = today;
     $("#fBio").max = addDays(today, 180);
-    for (const id of ["#fReceipt", "#fFiled", "#fBio", "#fApproval", "#findReceipt", "#estReceipt"]) $(id).min = "2020-01-01";
+    for (const id of ["#fReceipt", "#fBio", "#fApproval", "#findReceipt", "#estReceipt"]) $(id).min = "2020-01-01";
 
     buildAscOptions("");
   }
@@ -560,10 +561,16 @@
       : "Fill in what you know. Fields marked optional can be added later.";
     $("#caseSubmit").textContent = locked ? "Save changes" : "Add my case";
     toggleApproval();
+    updateStatusHelp();
     showStep("#stepForm");
     openedAt = Date.now();
     renderTurnstile();
     $("#fBlock").focus();
+  }
+
+  function updateStatusHelp() {
+    const st = STATUS_BY_V[$("#fStatus").value];
+    $("#statusHelp").textContent = st ? st.help : "Pick the latest status shown in your USCIS account.";
   }
 
   function toggleApproval() {
@@ -576,7 +583,7 @@
   function collect() {
     const f = $("#caseForm");
     const d = {};
-    for (const k of ["block", "receipt_date", "filed_date", "state", "app_type", "service_center", "asc", "bio_date", "bio_code", "status", "approval_date", "expedite"]) {
+    for (const k of ["block", "receipt_date", "state", "app_type", "service_center", "asc", "bio_date", "bio_code", "status", "approval_date", "expedite"]) {
       d[k] = (f.elements[k].value || "").trim();
     }
     return d;
@@ -588,7 +595,6 @@
     const need = (ok, field, msg) => { if (!ok) bad.push([field, msg]); };
     need(/^\d{3}$/.test(d.block), "block", "Enter the 3 digits after IOE09.");
     need(!!d.receipt_date && d.receipt_date <= today, "receipt_date", "Choose a receipt date that isn't in the future.");
-    need(!d.filed_date || !d.receipt_date || d.filed_date <= d.receipt_date, "filed_date", "The filed date can't be after the receipt date.");
     need(!!d.state, "state", "Choose your state.");
     need(!!d.app_type, "app_type", "Choose initial or renewal.");
     need(!!d.service_center, "service_center", "Choose a service center, or Unknown.");
@@ -802,7 +808,7 @@
       if (chk) onCheckin(chk.dataset.checkin, chk);
     });
     $("#caseForm").addEventListener("submit", onSubmit);
-    $("#fStatus").addEventListener("change", toggleApproval);
+    $("#fStatus").addEventListener("change", () => { toggleApproval(); updateStatusHelp(); });
     $("#fState").addEventListener("change", ev => buildAscOptions(ev.target.value, $("#fAsc").value));
     for (const id of ["#fBlock", "#findBlock", "#estBlock"]) {
       $(id).addEventListener("input", ev => { ev.target.value = ev.target.value.replace(/\D/g, "").slice(0, 3); });
