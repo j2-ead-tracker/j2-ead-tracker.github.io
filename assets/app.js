@@ -5,7 +5,7 @@
   const API = (CONFIG.API_URL || "").trim();
   const DEMO = !API;
   const PAGE_SIZE = 50;
-  const APP_VERSION = "1.0.3";
+  const APP_VERSION = "1.0.4";
 
   let entries = [];
   let shown = PAGE_SIZE;
@@ -51,7 +51,8 @@
     fillSelect($("#fCenter"), SERVICE_CENTERS);
     fillSelect($("#fCode"), BIO_CODES);
     fillSelect($("#fStatus"), STATUSES.map(s => [s.v, s.label]));
-    $("#statusKey").innerHTML = STATUSES.map(s => `<dt>${esc(s.label)}</dt><dd>${esc(s.help)}</dd>`).join("");
+    const key = $("#statusKey");
+    if (key) key.innerHTML = STATUSES.map(s => `<dt>${esc(s.label)}</dt><dd>${esc(s.help)}</dd>`).join("");
     fillSelect($("#fExpedite"), EXPEDITE, false);
 
     const f = $("#filters");
@@ -570,6 +571,7 @@
 
   function updateStatusHelp() {
     const st = STATUS_BY_V[$("#fStatus").value];
+    if (!$("#statusHelp")) return;
     $("#statusHelp").textContent = st ? st.help : "Pick the latest status shown in your USCIS account.";
   }
 
@@ -824,12 +826,14 @@
     $("#showMore").addEventListener("click", () => { shown += PAGE_SIZE; renderCases(); });
   }
 
-  setupTheme();
-  setupShare();
-  setupSelects();
-  setupFooter();
-  setupEstimate();
-  wire();
-  loadTurnstile();
+  // Each step runs on its own, so one problem can't break the rest of the page.
+  function safe(fn) { try { fn(); } catch (err) { console.error(err); } }
+  safe(setupFooter);
+  safe(setupTheme);
+  safe(setupShare);
+  safe(setupSelects);
+  safe(setupEstimate);
+  safe(wire);
+  safe(loadTurnstile);
   load();
 })();
