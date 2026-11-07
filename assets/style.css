@@ -122,8 +122,8 @@ strong { font-weight: 700; }
 .legend { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; font-size: .88rem; color: var(--ink-2); }
 .legend li { display: flex; align-items: center; gap: 6px; }
 .sw { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
-.sw-done, .cell.done { background: var(--go); }
-.sw-some, .cell.some { background: var(--go-mid); }
+.sw-card, .cell.card { background: var(--go); }
+.sw-appr, .cell.appr { background: var(--go-mid); }
 .sw-wait, .cell.wait { background: var(--wait-bg); box-shadow: inset 0 0 0 2px var(--wait); }
 .sw-none, .cell.none { background: transparent; box-shadow: inset 0 0 0 1px var(--line-2); }
 
