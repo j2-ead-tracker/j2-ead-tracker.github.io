@@ -44,7 +44,7 @@ Add rows directly to the `entries` tab. Fill `id` with any unique text (for exam
 | dates | `YYYY-MM-DD` |
 | state | 2-letter code, e.g. `PA` |
 | app_type | `initial` or `renewal` |
-| service_center | `PSC`, `TSC`, `NSC`, `CSC`, `VSC`, `NBC`, `UNK` |
+| service_center | `PSC` (YSC), `TSC` (SRC), `NSC` (LIN), `CSC` (WAC), `VSC` (EAC), `NBC` (MSC), `HART`, `UNK` |
 | asc | `City, ST` from the list in `assets/data.js`, or `OTHER`, or empty |
 | bio_code | `1`, `2`, `3`, `5`, `unsure`, or empty |
 | status | `received`, `bio_scheduled`, `fingerprints`, `reviewing`, `rfe_sent`, `rfe_response`, `transferred`, `approved`, `card_produced`, `card_mailed`, `card_delivered`, `denied` |
