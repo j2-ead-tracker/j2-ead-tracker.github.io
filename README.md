@@ -24,7 +24,7 @@ With `API_URL` empty in `config.js`, the site shows made-up sample cases and a "
 6. Click **Deploy** and copy the web app URL. It ends with `/exec`.
 7. Paste the URL into `config.js` as `API_URL`, commit, and wait a minute for GitHub Pages to update.
 
-When you change `Code.gs` later, use **Deploy > Manage deployments > Edit > Version: New version** so the URL stays the same.
+When you change `Code.gs` later, run **setup** once more (it adds any new columns without touching your data), then use **Deploy > Manage deployments > Edit > Version: New version** so the URL stays the same.
 
 ## Moderating
 
@@ -43,11 +43,12 @@ Add rows directly to the `entries` tab. Fill `id` with any unique text (for exam
 | block | 3 digits, e.g. `381` |
 | dates | `YYYY-MM-DD` |
 | state | 2-letter code, e.g. `PA` |
+| country | country of birth exactly as in the list in `assets/data.js`, or empty |
 | app_type | `initial` or `renewal` |
 | service_center | `PSC` (YSC), `TSC` (SRC), `NSC` (LIN), `CSC` (WAC), `VSC` (EAC), `NBC` (MSC), `HART`, `UNK` |
 | asc | `City, ST` from the list in `assets/data.js`, or `OTHER`, or empty |
 | bio_code | `1`, `2`, `3`, `5`, `unsure`, or empty |
-| status | `received`, `bio_scheduled`, `fingerprints`, `reviewing`, `rfe_sent`, `rfe_response`, `transferred`, `approved`, `card_produced`, `card_mailed`, `card_delivered`, `denied` |
+| status | `received`, `bio_scheduled`, `fingerprints`, `reviewing`, `rfe_sent`, `rfe_response`, `transferred`, `approved` (card not made yet), `card_produced`, `card_mailed`, `card_delivered` (card in hand), `denied` |
 | expedite | `no` or `yes` |
 | last_checked | the date of the Reddit comment, for cases still waiting |
 
