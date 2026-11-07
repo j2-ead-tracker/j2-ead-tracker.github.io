@@ -5,7 +5,7 @@
   const API = (CONFIG.API_URL || "").trim();
   const DEMO = !API;
   const PAGE_SIZE = 50;
-  const APP_VERSION = "1.0.4";
+  const APP_VERSION = "1.1.0";
 
   let entries = [];
   let shown = PAGE_SIZE;
@@ -50,9 +50,21 @@
     fillSelect($("#findType"), APP_TYPES);
     fillSelect($("#fCenter"), SERVICE_CENTERS);
     fillSelect($("#fCode"), BIO_CODES);
-    fillSelect($("#fStatus"), STATUSES.map(s => [s.v, s.label]));
+    const statusSel = $("#fStatus");
+    statusSel.innerHTML = `<option value="">Select</option>`;
+    for (const grp of [...new Set(STATUSES.map(x => x.group))]) {
+      const g = document.createElement("optgroup");
+      g.label = grp;
+      for (const st of STATUSES.filter(x => x.group === grp)) {
+        const o = document.createElement("option");
+        o.value = st.v; o.textContent = st.label;
+        g.appendChild(o);
+      }
+      statusSel.appendChild(g);
+    }
     const key = $("#statusKey");
     if (key) key.innerHTML = STATUSES.map(s => `<dt>${esc(s.label)}</dt><dd>${esc(s.help)}</dd>`).join("");
+    fillSelect($("#fCountry"), COUNTRIES.map(c => [c, c]));
     fillSelect($("#fExpedite"), EXPEDITE, false);
 
     const f = $("#filters");
@@ -168,6 +180,7 @@
         receipt_date: receipt,
         filed_date: addDays(receipt, -Math.round(2 + rnd() * 6)),
         state,
+        country: rnd() < 0.25 ? "" : pick(["India", "China", "Turkey", "Brazil", "South Korea", "Germany", "Iran", "Mexico", "Japan", "Italy"]),
         app_type: rnd() < 0.75 ? "initial" : "renewal",
         service_center: rnd() < 0.6 ? "PSC" : rnd() < 0.5 ? "UNK" : pick(["TSC", "NSC", "CSC", "VSC"]),
         asc: ASCS[state] ? `${pick(ASCS[state])}, ${state}` : "",
@@ -191,6 +204,7 @@
     renderStrip();
     renderKM();
     renderBlocks();
+    fillCountryFilter();
     renderCases();
   }
 
@@ -212,8 +226,9 @@
           : "No cases yet. Add yours to get the tracker started.";
       }
     }
+    const withCard = entries.filter(e => e.status === "card_delivered").length;
     $("#summaryLine").textContent = entries.length
-      ? `Based on ${entries.length} reported cases: ${approved} approved, ${waiting} still waiting${denied ? `, ${denied} denied` : ""}.`
+      ? `Based on ${entries.length} reported cases: ${approved} approved (${withCard} have their card), ${waiting} still waiting${denied ? `, ${denied} denied` : ""}.`
       : "";
   }
 
@@ -341,8 +356,8 @@
 
   function statusPill(e) {
     const s = STATUS_BY_V[e.status];
-    const label = s ? s.label : e.status;
-    const cls = isApproved(e) ? "ok" : isDenied(e) ? "no" : "wait";
+    const label = s ? s.short : e.status;
+    const cls = e.status === "card_delivered" ? "card" : isApproved(e) ? "ok" : isDenied(e) ? "no" : "wait";
     return `<span class="pill ${cls}">${esc(label)}</span>`;
   }
 
@@ -350,7 +365,17 @@
     const f = $("#filters");
     const q = {
       block: f.block.value.trim(), service_center: f.service_center.value, state: f.state.value,
-      app_type: f.app_type.value, group: f.group.value, expedite: f.expedite.value
+      app_type: f.app_type.value, group: f.group.value, expedite: f.expedite.value, country: f.country.value
+    };
+    const inGroup = e => {
+      switch (q.group) {
+        case "waiting": return isWaiting(e);
+        case "approved": return isApproved(e);
+        case "nocard": return isApproved(e) && e.status !== "card_delivered";
+        case "card": return e.status === "card_delivered";
+        case "denied": return isDenied(e);
+        default: return true;
+      }
     };
     return entries.filter(e =>
       (!q.block || e.block.startsWith(q.block)) &&
@@ -358,8 +383,17 @@
       (!q.state || e.state === q.state) &&
       (!q.app_type || e.app_type === q.app_type) &&
       (!q.expedite || e.expedite === q.expedite) &&
-      (!q.group || (q.group === "approved" ? isApproved(e) : q.group === "denied" ? isDenied(e) : isWaiting(e)))
+      (!q.country || e.country === q.country) &&
+      inGroup(e)
     ).sort((a, b) => Number(b.block) - Number(a.block) || (b.receipt_date > a.receipt_date ? 1 : -1));
+  }
+
+  function fillCountryFilter() {
+    const sel = $("#filters").country;
+    const current = sel.value;
+    const used = [...new Set(entries.map(e => e.country).filter(Boolean))].sort();
+    sel.innerHTML = `<option value="">Any</option>` + used.map(c => `<option>${esc(c)}</option>`).join("");
+    sel.value = used.includes(current) ? current : "";
   }
 
   function renderCases() {
@@ -373,6 +407,7 @@
         <td class="b">${esc(e.block)}${e.source === "reddit" ? '<span class="src" title="Imported from a public Reddit thread">Reddit</span>' : ""}</td>
         <td>${fmtDate(e.receipt_date)}</td>
         <td>${esc(e.state)}</td>
+        <td>${e.country ? esc(e.country) : "—"}</td>
         <td>${esc(CENTER_SHORT[e.service_center] || e.service_center)}</td>
         <td>${e.bio_date ? fmtShort(e.bio_date) : "—"}${e.asc && e.asc !== "OTHER" ? `<br><span class="src">${esc(e.asc)}</span>` : ""}</td>
         <td>${esc(typeName(e.app_type))}</td>
@@ -383,7 +418,7 @@
         <td>${isWaiting(e) ? fmtShort(e.last_checked) : "—"}</td>
       </tr>`;
     });
-    $("#caseTable tbody").innerHTML = rows.length ? rows.join("") : `<tr><td colspan="11">No cases match these filters.</td></tr>`;
+    $("#caseTable tbody").innerHTML = rows.length ? rows.join("") : `<tr><td colspan="12">No cases match these filters.</td></tr>`;
     $("#showMore").hidden = list.length <= shown;
   }
 
@@ -505,7 +540,7 @@
     return `<div class="match">
       <div class="match-info">
         <span class="b">Block ${esc(e.block)}</span>
-        <span class="match-meta">Received ${fmtDate(e.receipt_date)}, ${esc(e.state)}, ${esc(typeName(e.app_type))}${e.bio_date ? `, biometrics ${fmtShort(e.bio_date)}` : ""}</span><br>
+        <span class="match-meta">Received ${fmtDate(e.receipt_date)}, ${esc(e.state)}, ${esc(typeName(e.app_type))}${e.country ? `, born in ${esc(e.country)}` : ""}${e.bio_date ? `, biometrics ${fmtShort(e.bio_date)}` : ""}</span><br>
         ${statusPill(e)} ${waiting && e.last_checked ? `<span class="match-meta">last checked ${fmtShort(e.last_checked)}</span>` : ""}
       </div>
       <div class="match-actions">
@@ -585,7 +620,7 @@
   function collect() {
     const f = $("#caseForm");
     const d = {};
-    for (const k of ["block", "receipt_date", "state", "app_type", "service_center", "asc", "bio_date", "bio_code", "status", "approval_date", "expedite"]) {
+    for (const k of ["block", "receipt_date", "state", "country", "app_type", "service_center", "asc", "bio_date", "bio_code", "status", "approval_date", "expedite"]) {
       d[k] = (f.elements[k].value || "").trim();
     }
     return d;
