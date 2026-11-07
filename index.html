@@ -296,11 +296,13 @@
             <label for="fReceipt">Receipt date</label>
             <input id="fReceipt" name="receipt_date" type="date" required>
             <p class="help">"Received date" on your receipt notice.</p>
-          </div>
-          <div class="field">
-            <label for="fFiled">Filed/delivered date <span class="opt">optional</span></label>
-            <input id="fFiled" name="filed_date" type="date">
-            <p class="help">The day USCIS got your package.</p>
+            <details class="status-key">
+              <summary>Is this the same as the filed date?</summary>
+              <dl>
+                <dt>Usually, yes</dt>
+                <dd>The filed (delivered) date is the day USCIS got your package. The receipt date is the day USCIS logged it, and it's printed on your receipt notice. They're the same day or a day or two apart. Use the receipt date.</dd>
+              </dl>
+            </details>
           </div>
           <div class="field">
             <label for="fState">State</label>
@@ -331,7 +333,11 @@
           <div class="field">
             <label for="fStatus">Current status</label>
             <select id="fStatus" name="status" required><option value="">Select</option></select>
-            <p class="help">Paper filers who see "Case Accepted By the USCIS Lockbox" should pick Case Was Received.</p>
+            <p class="help" id="statusHelp">Pick the latest status shown in your USCIS account.</p>
+            <details class="status-key">
+              <summary>What does each status mean?</summary>
+              <dl id="statusKey"></dl>
+            </details>
           </div>
           <div class="field" id="approvalField" hidden>
             <label for="fApproval">Approval date</label>
