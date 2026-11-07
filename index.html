@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/style.css?v=1.1.0">
+  <link rel="stylesheet" href="assets/style.css?v=1.2.1">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%2323774f%22/%3E%3Ctext x=%2216%22 y=%2222%22 font-family=%22Arial%22 font-weight=%22700%22 font-size=%2214%22 fill=%22white%22 text-anchor=%22middle%22%3EJ2%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -66,16 +66,16 @@
         <div class="strip-head">
           <p class="strip-summary" id="summaryLine"></p>
           <ul class="legend" aria-label="Legend">
-            <li><span class="sw sw-done"></span>All approved</li>
-            <li><span class="sw sw-some"></span>Some approved</li>
+            <li><span class="sw sw-card"></span>Card arrived</li>
+            <li><span class="sw sw-appr"></span>EAD approved</li>
             <li><span class="sw sw-wait"></span>Still waiting</li>
-            <li><span class="sw sw-none"></span>No reports</li>
+            <li><span class="sw sw-none"></span>No cases yet</li>
           </ul>
         </div>
         <div class="strip-scroll">
           <div class="strip" id="blockStrip" role="list" aria-label="Receipt blocks"></div>
         </div>
-        <p class="hint">Each square is one receipt block, the 3 digits after IOE09. Tap a block to see its cases.</p>
+        <p class="hint">Each square is one receipt block (the 3 numbers after IOE09). The color shows the furthest step anyone in that block has reached. Tap a square to see its cases.</p>
       </div>
     </section>
 
@@ -138,7 +138,7 @@
         <p class="section-intro">Blocks roughly follow the order USCIS received cases. A higher block usually means a later filing.</p>
         <div class="table-scroll">
           <table class="data" id="blockTable">
-            <thead><tr><th scope="col">Block</th><th scope="col">Cases</th><th scope="col">Approved</th><th scope="col">Waiting</th><th scope="col">Median days to approval</th><th scope="col">Latest approval</th></tr></thead>
+            <thead><tr><th scope="col">Block</th><th scope="col">Cases</th><th scope="col">Still waiting</th><th scope="col">EAD approved</th><th scope="col">Card arrived</th><th scope="col">Median days to approval</th><th scope="col">Latest approval</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -238,7 +238,7 @@
   <footer class="footer">
     <div class="wrap footer-inner">
       <p>Community-reported data. Not affiliated with USCIS. Not legal advice.</p>
-      <p><span id="footerLinks"><a href="mailto:j2eadtracker@gmail.com">Contact</a></span> &nbsp; <span id="siteVersion">Version 1.1.0</span></p>
+      <p><span id="footerLinks"><a href="mailto:j2eadtracker@gmail.com">Contact</a></span> &nbsp; <span id="siteVersion">Version 1.2.1</span></p>
     </div>
   </footer>
 
@@ -291,7 +291,7 @@
           <div class="field">
             <label for="fBlock">Receipt block</label>
             <div class="block-input"><span aria-hidden="true">IOE09</span><input id="fBlock" name="block" inputmode="numeric" maxlength="3" placeholder="381" required autocomplete="off"></div>
-            <p class="help">Only the 3 digits after IOE09.</p>
+            <p class="help">Only the 3 numbers after IOE09.</p>
           </div>
           <div class="field">
             <label for="fReceipt">Receipt date</label>
@@ -300,8 +300,8 @@
             <details class="status-key">
               <summary>Is this the same as the filed date?</summary>
               <dl>
-                <dt>Usually, yes</dt>
-                <dd>The filed (delivered) date is the day USCIS got your package. The receipt date is the day USCIS logged it, and it's printed on your receipt notice. They're the same day or a day or two apart. Use the receipt date.</dd>
+                <dt>Almost the same</dt>
+                <dd>They are the same day or 1 to 2 days apart. Use the "Received date" on your receipt notice.</dd>
               </dl>
             </details>
           </div>
@@ -316,12 +316,12 @@
           <div class="field">
             <label for="fCountry">Country of birth <span class="opt">optional</span></label>
             <select id="fCountry" name="country"><option value="">Prefer not to say</option></select>
-            <p class="help">USCIS processing can differ by country of birth or citizenship, so this helps compare similar cases.</p>
+            <p class="help">USCIS can be slower for some countries. This helps compare people from the same country.</p>
           </div>
           <div class="field">
             <label for="fCenter">Service center</label>
             <select id="fCenter" name="service_center" required><option value="">Select</option></select>
-            <p class="help">Your notice may show a code like YSC (Potomac). This is not where you did your biometrics. <a href="#guide" target="_blank" rel="noopener">Where do I find this?</a></p>
+            <p class="help">Your notice may show a code like YSC. YSC means Potomac. This is NOT where you gave fingerprints. <a href="#guide" target="_blank" rel="noopener">Where do I find this?</a></p>
           </div>
           <div class="field">
             <label for="fAsc">Biometrics location (ASC) <span class="opt">optional</span></label>
@@ -339,7 +339,7 @@
           <div class="field span-all">
             <label for="fStatus">Current status</label>
             <select id="fStatus" name="status" required><option value="">Select</option></select>
-            <p class="help" id="statusHelp">Pick the latest status shown in your USCIS account.</p>
+            <p class="help" id="statusHelp">Choose the one that matches your case today.</p>
             <details class="status-key">
               <summary>What does each status mean?</summary>
               <dl id="statusKey"></dl>
@@ -348,10 +348,10 @@
           <div class="field" id="approvalField" hidden>
             <label for="fApproval">Approval date</label>
             <input id="fApproval" name="approval_date" type="date">
-            <p class="help">The first day you saw Case Was Approved, New Card Is Being Produced, or the approval notice in your account.</p>
+            <p class="help">The first day your USCIS account showed that your EAD was approved.</p>
           </div>
           <div class="field">
-            <label for="fExpedite">Expedite requested?</label>
+            <label for="fExpedite">Did you ask USCIS to speed up your case (expedite)?</label>
             <select id="fExpedite" name="expedite" required></select>
           </div>
           <div class="hp" aria-hidden="true">
@@ -386,9 +386,7 @@
   </dialog>
 
 
-  <script src="config.js?v=1.1.0"></script>
-  <script src="assets/data.js?v=1.1.0"></script>
-  <script src="assets/stats.js?v=1.1.0"></script>
-  <script src="assets/app.js?v=1.1.0"></script>
+  <script src="config.js?v=1.2.1"></script>
+  <script src="assets/app.js?v=1.2.1"></script>
 </body>
 </html>

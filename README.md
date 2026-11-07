@@ -43,10 +43,10 @@ Add rows directly to the `entries` tab. Fill `id` with any unique text (for exam
 | block | 3 digits, e.g. `381` |
 | dates | `YYYY-MM-DD` |
 | state | 2-letter code, e.g. `PA` |
-| country | country of birth exactly as in the list in `assets/data.js`, or empty |
+| country | country of birth exactly as in the list in `assets/app.js`, or empty |
 | app_type | `initial` or `renewal` |
 | service_center | `PSC` (YSC), `TSC` (SRC), `NSC` (LIN), `CSC` (WAC), `VSC` (EAC), `NBC` (MSC), `HART`, `UNK` |
-| asc | `City, ST` from the list in `assets/data.js`, or `OTHER`, or empty |
+| asc | `City, ST` from the list in `assets/app.js`, or `OTHER`, or empty |
 | bio_code | `1`, `2`, `3`, `5`, `unsure`, or empty |
 | status | `received`, `bio_scheduled`, `fingerprints`, `reviewing`, `rfe_sent`, `rfe_response`, `transferred`, `approved` (card not made yet), `card_produced`, `card_mailed`, `card_delivered` (card in hand), `denied` |
 | expedite | `no` or `yes` |
