@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/style.css?v=1.0.4">
+  <link rel="stylesheet" href="assets/style.css?v=1.1.0">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%2323774f%22/%3E%3Ctext x=%2216%22 y=%2222%22 font-family=%22Arial%22 font-weight=%22700%22 font-size=%2214%22 fill=%22white%22 text-anchor=%22middle%22%3EJ2%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -153,7 +153,8 @@
           <label>Service center <select name="service_center"><option value="">Any</option></select></label>
           <label>State <select name="state"><option value="">Any</option></select></label>
           <label>Type <select name="app_type"><option value="">Any</option></select></label>
-          <label>Status <select name="group"><option value="">Any</option><option value="waiting">Waiting</option><option value="approved">Approved</option><option value="denied">Denied</option></select></label>
+          <label>Status <select name="group"><option value="">Any</option><option value="waiting">Waiting for a decision</option><option value="approved">Approved (all)</option><option value="nocard">Approved, card not received yet</option><option value="card">Card received</option><option value="denied">Denied</option></select></label>
+          <label>Country <select name="country"><option value="">Any</option></select></label>
           <label>Expedite <select name="expedite"><option value="">Any</option></select></label>
           <button class="btn btn-sm btn-ghost" type="reset">Clear</button>
         </form>
@@ -161,7 +162,7 @@
         <div class="table-scroll">
           <table class="data" id="caseTable">
             <thead><tr>
-              <th scope="col">Block</th><th scope="col">Receipt date</th><th scope="col">State</th><th scope="col">Service center</th>
+              <th scope="col">Block</th><th scope="col">Receipt date</th><th scope="col">State</th><th scope="col">Country</th><th scope="col">Service center</th>
               <th scope="col">Biometrics</th><th scope="col">Type</th><th scope="col">Status</th><th scope="col">Approved</th>
               <th scope="col">Days</th><th scope="col">Expedite</th><th scope="col">Last checked</th>
             </tr></thead>
@@ -237,7 +238,7 @@
   <footer class="footer">
     <div class="wrap footer-inner">
       <p>Community-reported data. Not affiliated with USCIS. Not legal advice.</p>
-      <p><span id="footerLinks"><a href="mailto:j2eadtracker@gmail.com">Contact</a></span> &nbsp; <span id="siteVersion">Version 1.0.4</span></p>
+      <p><span id="footerLinks"><a href="mailto:j2eadtracker@gmail.com">Contact</a></span> &nbsp; <span id="siteVersion">Version 1.1.0</span></p>
     </div>
   </footer>
 
@@ -313,6 +314,11 @@
             <select id="fType" name="app_type" required><option value="">Select</option></select>
           </div>
           <div class="field">
+            <label for="fCountry">Country of birth <span class="opt">optional</span></label>
+            <select id="fCountry" name="country"><option value="">Prefer not to say</option></select>
+            <p class="help">USCIS processing can differ by country of birth or citizenship, so this helps compare similar cases.</p>
+          </div>
+          <div class="field">
             <label for="fCenter">Service center</label>
             <select id="fCenter" name="service_center" required><option value="">Select</option></select>
             <p class="help">Your notice may show a code like YSC (Potomac). This is not where you did your biometrics. <a href="#guide" target="_blank" rel="noopener">Where do I find this?</a></p>
@@ -330,7 +336,7 @@
             <select id="fCode" name="bio_code"><option value="">Select</option></select>
             <p class="help">Top right of your biometrics notice. <a href="https://citizenpath.com/uscis-biometrics-appointment/" target="_blank" rel="noopener">What's this?</a></p>
           </div>
-          <div class="field">
+          <div class="field span-all">
             <label for="fStatus">Current status</label>
             <select id="fStatus" name="status" required><option value="">Select</option></select>
             <p class="help" id="statusHelp">Pick the latest status shown in your USCIS account.</p>
@@ -380,9 +386,9 @@
   </dialog>
 
 
-  <script src="config.js?v=1.0.4"></script>
-  <script src="assets/data.js?v=1.0.4"></script>
-  <script src="assets/stats.js?v=1.0.4"></script>
-  <script src="assets/app.js?v=1.0.4"></script>
+  <script src="config.js?v=1.1.0"></script>
+  <script src="assets/data.js?v=1.1.0"></script>
+  <script src="assets/stats.js?v=1.1.0"></script>
+  <script src="assets/app.js?v=1.1.0"></script>
 </body>
 </html>
