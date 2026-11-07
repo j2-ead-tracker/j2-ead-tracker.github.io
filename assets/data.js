@@ -16,11 +16,14 @@ const STATES = [
   ["MP","Northern Mariana Islands"],["AS","American Samoa"]
 ];
 
+// Notices may show either the old code (YSC, SRC, LIN, WAC, EAC, MSC) or the newer one.
 const SERVICE_CENTERS = [
-  ["PSC","Potomac (PSC)"],["TSC","Texas (TSC)"],["NSC","Nebraska (NSC)"],
-  ["CSC","California (CSC)"],["VSC","Vermont (VSC)"],["NBC","National Benefits Center (NBC)"],
+  ["PSC","Potomac (YSC or PSC)"],["TSC","Texas (SRC or TSC)"],["NSC","Nebraska (LIN or NSC)"],
+  ["CSC","California (WAC or CSC)"],["VSC","Vermont (EAC or VSC)"],
+  ["NBC","National Benefits Center (NBC or MSC)"],["HART","HART Service Center"],
   ["UNK","Unknown"]
 ];
+const CENTER_SHORT = { PSC:"Potomac", TSC:"Texas", NSC:"Nebraska", CSC:"California", VSC:"Vermont", NBC:"NBC", HART:"HART", UNK:"Unknown" };
 
 // stage: 0-9 waiting, 10-19 approved, 20 denied
 const STATUSES = [
