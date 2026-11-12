@@ -126,7 +126,7 @@ function doPost(e) {
 /* ---------- Actions ---------- */
 
 function create_(d) {
-  const v = validate_(d);
+  const v = validate_(d, true);
   if (!v.ok) return v;
   const sig = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(v.rec)));
   const cache = CacheService.getScriptCache();
@@ -152,7 +152,8 @@ function update_(id, d) {
 
   // Block and receipt date are locked after the first entry.
   const merged = Object.assign({}, d, { block: before.block, receipt_date: before.receipt_date });
-  const v = validate_(merged);
+  // Older entries saved without a country may stay that way. Once a country is saved, it can't be cleared.
+  const v = validate_(merged, !!before.country);
   if (!v.ok) return v;
 
   const flags = [];
@@ -189,7 +190,7 @@ function checkin_(id) {
 
 /* ---------- Validation ---------- */
 
-function validate_(d) {
+function validate_(d, requireCountry) {
   const s = k => (d[k] === undefined || d[k] === null ? "" : String(d[k]).trim());
   const rec = {};
   ["block", "receipt_date", "filed_date", "state", "country", "app_type", "service_center", "asc", "bio_date",
@@ -202,6 +203,7 @@ function validate_(d) {
   if (rec.filed_date && (!isDate_(rec.filed_date) || rec.filed_date > rec.receipt_date || rec.filed_date < addDays_(rec.receipt_date, -90))) return fail("Check your filed date. It should be on or before the receipt date.");
   if (STATES.indexOf(rec.state) < 0) return fail("Choose your state.");
   if (["initial", "renewal"].indexOf(rec.app_type) < 0) return fail("Choose initial or renewal.");
+  if (requireCountry && !rec.country) return fail("Choose your country of birth.");
   if (rec.country && COUNTRIES.indexOf(rec.country) < 0) return fail("Choose a country from the list.");
   if (CENTERS.indexOf(rec.service_center) < 0) return fail("Choose a service center, or Unknown.");
   if (!ASC_SET[rec.asc]) return fail("Choose a biometrics location from the list.");
