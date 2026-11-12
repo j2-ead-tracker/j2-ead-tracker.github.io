@@ -94,7 +94,7 @@ const ASCS = {
   VT:["Burlington"], WA:["Seattle","Spokane","Yakima"], WI:["Milwaukee"], WV:["Charleston"], WY:["Casper"]
 };
 
-// Country of birth (optional field).
+// Country of birth (required for new cases).
 const COUNTRIES = ["Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burma (Myanmar)", "Burundi", "Cabo Verde", "Cambodia", "Cameroon", "Canada", "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros", "Congo (Democratic Republic)", "Congo (Republic)", "Costa Rica", "Cote d'Ivoire", "Croatia", "Cuba", "Cyprus", "Czechia", "Denmark", "Djibouti", "Dominica", "Dominican Republic", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia", "Fiji", "Finland", "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Honduras", "Hong Kong", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati", "Kosovo", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Macau", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Korea", "North Macedonia", "Norway", "Oman", "Pakistan", "Palau", "Palestine", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia", "Rwanda", "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Korea", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria", "Taiwan", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "Uruguay", "Uzbekistan", "Vanuatu", "Vatican City", "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe"];
 
 // Date helpers and the analysis. Dates are "YYYY-MM-DD" strings.
@@ -123,16 +123,19 @@ function stageOf(e) {
   const s = STATUS_BY_V[e.status];
   return s ? s.stage : 0;
 }
+// An approved status counts as approved even if the approval date is missing
+// (for example a row typed into the Sheet by hand). Timing math needs the date, so it checks hasApprovalDate.
 function isApproved(e) {
   const st = stageOf(e);
-  return st >= 10 && st < 20 && !!e.approval_date;
+  return st >= 10 && st < 20;
 }
+function hasApprovalDate(e) { return isApproved(e) && parseISO(e.approval_date) !== null; }
 function isDenied(e) { return e.status === "denied"; }
 function isWaiting(e) { return stageOf(e) < 10; }
 
 // Days from receipt to approval, or to the last time a waiting person checked in.
 function waitDays(e, today) {
-  if (isApproved(e)) return daysBetween(e.receipt_date, e.approval_date);
+  if (isApproved(e)) return hasApprovalDate(e) ? daysBetween(e.receipt_date, e.approval_date) : null;
   return daysBetween(e.receipt_date, e.last_checked || today);
 }
 
@@ -143,6 +146,7 @@ function kaplanMeier(entries, today) {
   const obs = [];
   for (const e of entries) {
     if (!e.receipt_date || isDenied(e)) continue;
+    if (isApproved(e) && !hasApprovalDate(e)) continue;  // approved, but we don't know when
     const approved = isApproved(e);
     if (!approved && !isWaiting(e)) continue;
     const t = approved ? daysBetween(e.receipt_date, e.approval_date)
@@ -214,30 +218,36 @@ function blockSummary(entries) {
       card: list.filter(e => e.status === "card_delivered").length,
       waiting: list.filter(isWaiting).length,
       denied: list.filter(isDenied).length,
-      medianDays: median(approved.map(e => daysBetween(e.receipt_date, e.approval_date))),
-      latestApproval: approved.map(e => e.approval_date).sort().pop() || null
+      medianDays: median(approved.filter(hasApprovalDate).map(e => daysBetween(e.receipt_date, e.approval_date))),
+      latestApproval: approved.filter(hasApprovalDate).map(e => e.approval_date).sort().pop() || null
     };
   }).sort((a, b) => Number(b.block) - Number(a.block));
 }
 
-// Highest block with a non-expedited approval, and the most recent approval overall.
+// highest: highest block with any approval (expedited included).
+// highestRegular: highest block with a non-expedited approval (a fairer "where is the line").
+// latest: the most recent approval date reported.
 function frontOfLine(entries) {
   const approved = entries.filter(isApproved);
-  const regular = approved.filter(e => e.expedite !== "yes");
-  let highest = null;
-  for (const e of regular) {
-    if (!highest || Number(e.block) > Number(highest.block) ||
-        (e.block === highest.block && e.approval_date > highest.approval_date)) highest = e;
-  }
+  const top = list => {
+    let best = null;
+    for (const e of list) {
+      if (!best || Number(e.block) > Number(best.block) ||
+          (e.block === best.block && (e.approval_date || "") > (best.approval_date || ""))) best = e;
+    }
+    return best;
+  };
+  const highest = top(approved);
+  const highestRegular = top(approved.filter(e => e.expedite !== "yes"));
   let latest = null;
-  for (const e of approved) {
+  for (const e of approved.filter(hasApprovalDate)) {
     if (!latest || e.approval_date > latest.approval_date) latest = e;
   }
-  return { highest, latest };
+  return { highest, highestRegular, latest };
 }
 
 if (typeof module !== "undefined") {
-  module.exports = { parseISO, daysBetween, addDays, kaplanMeier, blockSummary, frontOfLine, median, isApproved, isWaiting, isDenied, waitDays };
+  module.exports = { parseISO, daysBetween, addDays, kaplanMeier, blockSummary, frontOfLine, median, isApproved, hasApprovalDate, isWaiting, isDenied, waitDays };
 }
 
 (function () {
@@ -246,11 +256,13 @@ if (typeof module !== "undefined") {
   const CONFIG = window.TRACKER_CONFIG || {};
   const API = (CONFIG.API_URL || "").trim();
   const DEMO = !API;
-  const PAGE_SIZE = 50;
-  const APP_VERSION = "1.2.1";
+  // How many rows the tables show. Kept small on purpose.
+  const ROWS_DEFAULT = 5;     // no filter picked
+  const ROWS_FILTERED = 10;   // at least one filter picked under "All cases"
+  const BLOCK_ROWS = 5;
+  const APP_VERSION = "1.3.0";
 
   let entries = [];
-  let shown = PAGE_SIZE;
   let myBlock = null;
   let myWait = null;
 
@@ -361,11 +373,24 @@ if (typeof module !== "undefined") {
 
   /* ---------- Data ---------- */
 
+  // Accepts "2026-11-10", "2026-11-10T05:00:00Z" or "11/10/2026" (typed by hand in the Sheet).
+  function toISO(v) {
+    const s = String(v ?? "").trim();
+    if (!s) return "";
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) return `${m[3]}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`;
+    return s.slice(0, 10);
+  }
+
   function normalize(e) {
     const out = { ...e };
-    out.block = String(e.block ?? "").padStart(3, "0").slice(-3);
+    // Rows edited by hand can have spaces, "IOE09375", or capitalized values. Clean them up.
+    out.block = String(e.block ?? "").replace(/\D/g, "").padStart(3, "0").slice(-3);
+    out.status = String(e.status ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+    out.expedite = String(e.expedite ?? "").trim().toLowerCase();
     for (const k of ["receipt_date", "filed_date", "bio_date", "approval_date", "last_checked", "updated_at"]) {
-      out[k] = e[k] ? String(e[k]).slice(0, 10) : "";
+      out[k] = toISO(e[k]);
     }
     return out;
   }
@@ -444,6 +469,7 @@ if (typeof module !== "undefined") {
     renderHero(failed);
     renderShareCount();
     renderStrip();
+    renderBlockBars();
     renderKM();
     renderBlocks();
     fillCountryFilter();
@@ -451,16 +477,29 @@ if (typeof module !== "undefined") {
   }
 
   function renderHero(failed) {
-    const { highest, latest } = frontOfLine(entries);
+    const { highest, highestRegular, latest } = frontOfLine(entries);
     const approved = entries.filter(isApproved).length;
     const waiting = entries.filter(isWaiting).length;
     const denied = entries.filter(isDenied).length;
     if (!failed) {
-      if (highest) {
-        $("#ticketBlock").textContent = highest.block;
-        $("#ticketNote").textContent = latest.id === highest.id
-          ? `Approved ${fmtDate(highest.approval_date)}, the most recent approval reported. Expedited cases aren't counted here.`
-          : `Approved ${fmtDate(highest.approval_date)}. The most recent approval reported was ${fmtDate(latest.approval_date)}, block ${latest.block}. Expedited cases aren't counted here.`;
+      // The big number is the highest approval WITHOUT an expedite, since expedited cases skip the line.
+      // If a higher block was approved through an expedite, the note says so.
+      const shownCase = highestRegular || highest;
+      if (shownCase) {
+        $("#ticketBlock").textContent = shownCase.block;
+        const parts = [];
+        parts.push(shownCase.approval_date ? `Approved ${fmtDate(shownCase.approval_date)}.` : "Approved (date not reported).");
+        if (shownCase.expedite === "yes") {
+          parts.push("This case was expedited. No regular approvals have been reported yet.");
+        } else if (Number(highest.block) > Number(shownCase.block)) {
+          parts.push(`Block ${highest.block} was also approved, but it was expedited, so it isn't counted here.`);
+        }
+        if (latest && latest.id !== shownCase.id) {
+          parts.push(`The most recent approval reported was ${fmtDate(latest.approval_date)}, block ${latest.block}.`);
+        } else if (latest) {
+          parts.push("This is the most recent approval reported.");
+        }
+        $("#ticketNote").textContent = parts.join(" ");
       } else {
         $("#ticketBlock").textContent = "···";
         $("#ticketNote").textContent = entries.length
@@ -509,7 +548,6 @@ if (typeof module !== "undefined") {
         const f = $("#filters");
         f.reset();
         f.block.value = id;
-        shown = PAGE_SIZE;
         renderCases();
         $("#cases").scrollIntoView();
       });
@@ -526,6 +564,133 @@ if (typeof module !== "undefined") {
     const { highest } = frontOfLine(entries);
     const focus = myBlock ? Math.min(Number(myBlock), highest ? Number(highest.block) : Number(myBlock)) : highest ? Number(highest.block) : max;
     sc.scrollLeft = Math.max(0, (focus - min - 6) * 29);
+  }
+
+  // Stacked bars: number of reports per block, split by status.
+  // Same block range as the strip above, so the two line up.
+  const BAR_SEGS = [
+    { k: "card",   cls: "seg-card",   sw: "sw-card",   label: "Card arrived" },
+    { k: "appr",   cls: "seg-appr",   sw: "sw-appr",   label: "Approved, no card yet" },
+    { k: "wait",   cls: "seg-wait",   sw: "sw-wait",   label: "Still waiting" },
+    { k: "denied", cls: "seg-denied", sw: "sw-denied", label: "Denied" }
+  ];
+
+  // Rectangle with rounded top corners only (the end of the bar).
+  function topRounded(x, y, w, h, r) {
+    r = Math.min(r, w / 2, h);
+    return `M${x},${y + h} V${y + r} Q${x},${y} ${x + r},${y} H${x + w - r} Q${x + w},${y} ${x + w},${y + r} V${y + h} Z`;
+  }
+
+  function renderBlockBars() {
+    const box = $("#blockBars");
+    if (!box) return;
+    box.innerHTML = "";
+    if (!entries.length) return;
+    const summary = new Map(blockSummary(entries).map(b => [Number(b.block), b]));
+    const nums = [...summary.keys()];
+    const max = Math.max(...nums);
+    const min = Math.max(Math.min(...nums), max - 79);
+    const n = max - min + 1;
+
+    const slot = Math.max(12, Math.min(40, Math.floor(1000 / n)));
+    const bw = Math.max(6, Math.round(slot * 0.7));
+    const m = { l: 30, r: 8, t: 14, b: 24 };
+    const plotH = 170;
+    const W = m.l + n * slot + m.r, H = m.t + plotH + m.b;
+
+    let top = 1;
+    for (let b = min; b <= max; b++) { const s = summary.get(b); if (s) top = Math.max(top, s.total); }
+    const step = top <= 5 ? 1 : top <= 10 ? 2 : top <= 25 ? 5 : Math.ceil(top / 4 / 5) * 5;
+    const yMax = Math.ceil(top / step) * step;
+    const y = v => m.t + plotH - (v / yMax) * plotH;
+
+    let g = "";
+    for (let v = 0; v <= yMax; v += step) {
+      g += `<line class="${v ? "grid" : "axis"}" x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}"/>`;
+      g += `<text x="${m.l - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+    }
+
+    const counts = s => ({ card: s.card, appr: s.approved - s.card, wait: s.waiting, denied: s.denied });
+
+    for (let b = min, i = 0; b <= max; b++, i++) {
+      const id = String(b).padStart(3, "0");
+      const x0 = m.l + i * slot;
+      const bx = x0 + (slot - bw) / 2;
+      const s = summary.get(b);
+      let segs = "";
+      if (s) {
+        const c = counts(s);
+        const shown = BAR_SEGS.filter(sg => c[sg.k] > 0);
+        let acc = 0;
+        shown.forEach((sg, j) => {
+          const yTop = y(acc + c[sg.k]);
+          const yBot = y(acc);
+          const gap = j > 0 ? 2 : 0;  // 2px gap between stacked segments
+          const h = Math.max(1, yBot - yTop - gap);
+          const inset = sg.k === "wait" ? 0.75 : 0;  // keep the outline inside the bar
+          const xx = bx + inset, ww = bw - inset * 2, yy = yTop + inset, hh = Math.max(1, h - inset * 2);
+          segs += j === shown.length - 1
+            ? `<path class="${sg.cls}" d="${topRounded(xx, yy, ww, hh, 3)}"/>`
+            : `<rect class="${sg.cls}" x="${xx}" y="${yy}" width="${ww}" height="${hh}"/>`;
+          acc += c[sg.k];
+        });
+      }
+      const mine = myBlock === id;
+      g += `<g class="col${mine ? " mine" : ""}" data-block="${id}"><rect class="hit" x="${x0}" y="${m.t}" width="${slot}" height="${plotH}" rx="3"/>${segs}</g>`;
+      if (b % 10 === 0 || b === min) {
+        g += `<text x="${x0 + slot / 2}" y="${H - 6}" text-anchor="middle">${id}</text>`;
+      }
+      if (mine) g += `<text class="mine-label" x="${x0 + slot / 2}" y="${m.t - 3}" text-anchor="middle">You</text>`;
+    }
+
+    let totalShown = 0;
+    for (const [b, s] of summary) if (b >= min) totalShown += s.total;
+    const desc = `Stacked bar chart of reports per receipt block, blocks ${String(min).padStart(3, "0")} to ${String(max).padStart(3, "0")}, ${totalShown} reports. Each bar is split into card arrived, approved without card, still waiting and denied.`;
+    box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="min-width:${Math.round(W * 0.75)}px; max-width:${Math.max(W, 600)}px" role="img" aria-label="${esc(desc)}">${g}</svg><div class="bars-tip" hidden></div>`;
+
+    const svg = $("svg", box);
+    const tip = $(".bars-tip", box);
+    const showTip = col => {
+      $$(".col.on", svg).forEach(c => c.classList.remove("on"));
+      col.classList.add("on");
+      const id = col.dataset.block;
+      const s = summary.get(Number(id));
+      let html = `<strong>Block ${id}</strong>`;
+      if (!s) html += "No cases yet";
+      else {
+        const c = counts(s);
+        html += `${s.total} report${s.total > 1 ? "s" : ""}`;
+        for (const sg of BAR_SEGS.slice().reverse()) {
+          if (c[sg.k]) html += `<span class="tip-row"><span class="sw ${sg.sw}"></span>${sg.label}: ${c[sg.k]}</span>`;
+        }
+      }
+      tip.innerHTML = html;
+      tip.hidden = false;
+      const r = col.getBoundingClientRect(), br = box.getBoundingClientRect();
+      const tw = tip.offsetWidth;
+      let left = r.left - br.left + box.scrollLeft + r.width / 2 - tw / 2;
+      left = Math.max(box.scrollLeft, Math.min(left, box.scrollLeft + box.clientWidth - tw));
+      tip.style.left = `${left}px`;
+      tip.style.top = "0px";
+    };
+    const hideTip = () => { tip.hidden = true; $$(".col.on", svg).forEach(c => c.classList.remove("on")); };
+    $$(".col", svg).forEach(col => {
+      col.addEventListener("mouseenter", () => showTip(col));
+      col.addEventListener("mouseleave", hideTip);
+      col.addEventListener("click", () => {
+        const f = $("#filters");
+        f.reset();
+        f.block.value = col.dataset.block;
+        renderCases();
+        $("#cases").scrollIntoView();
+      });
+    });
+
+    // Scroll to the same spot as the strip: around your block or the highest approval.
+    const { highest } = frontOfLine(entries);
+    const focus = myBlock ? Math.min(Number(myBlock), highest ? Number(highest.block) : Number(myBlock)) : highest ? Number(highest.block) : max;
+    const scale = svg.clientWidth / W || 1;
+    box.scrollLeft = Math.max(0, (m.l + (focus - min - 6) * slot) * scale);
   }
 
   function renderKM() {
@@ -589,7 +754,11 @@ if (typeof module !== "undefined") {
   }
 
   function renderBlocks() {
-    const rows = blockSummary(entries);
+    const all = blockSummary(entries);
+    const rows = all.slice(0, BLOCK_ROWS);
+    $("#blockCount").textContent = all.length > rows.length
+      ? `Showing the ${rows.length} highest blocks of ${all.length}. Tap a square or bar above, or filter "All cases" by block, to see any block.`
+      : "";
     $("#blockTable tbody").innerHTML = rows.length ? rows.map(r => `
       <tr${myBlock === r.block ? ' class="row-hl"' : ""}>
         <td class="b">${esc(r.block)}</td>
@@ -609,12 +778,16 @@ if (typeof module !== "undefined") {
     return `<span class="pill ${cls}">${esc(label)}</span>`;
   }
 
-  function filteredCases() {
+  function filterQuery() {
     const f = $("#filters");
-    const q = {
+    return {
       block: f.block.value.trim(), service_center: f.service_center.value, state: f.state.value,
       app_type: f.app_type.value, group: f.group.value, expedite: f.expedite.value, country: f.country.value
     };
+  }
+
+  function filteredCases() {
+    const q = filterQuery();
     const inGroup = e => {
       switch (q.group) {
         case "waiting": return isWaiting(e);
@@ -647,8 +820,13 @@ if (typeof module !== "undefined") {
   function renderCases() {
     const today = todayISO();
     const list = filteredCases();
-    $("#caseCount").textContent = `${list.length} of ${entries.length} cases`;
-    const rows = list.slice(0, shown).map(e => {
+    const filtered = Object.values(filterQuery()).some(Boolean);
+    const limit = filtered ? ROWS_FILTERED : ROWS_DEFAULT;
+    const n = Math.min(list.length, limit);
+    $("#caseCount").textContent = filtered
+      ? `${list.length} of ${entries.length} cases match. Showing ${n}${list.length > n ? ", newest blocks first. Add more filters to narrow it down" : ""}.`
+      : `${entries.length} cases. Showing the ${n} newest. Pick a filter to look for specific cases.`;
+    const rows = list.slice(0, limit).map(e => {
       const days = waitDays(e, today);
       const daysText = isApproved(e) ? days : isWaiting(e) ? `${days} so far` : "—";
       return `<tr${myBlock === e.block ? ' class="row-hl"' : ""}>
@@ -661,13 +839,12 @@ if (typeof module !== "undefined") {
         <td>${esc(typeName(e.app_type))}</td>
         <td>${statusPill(e)}</td>
         <td>${fmtDate(e.approval_date)}</td>
-        <td>${daysText}</td>
+        <td>${daysText ?? "—"}</td>
         <td>${e.expedite === "yes" ? "Yes" : "No"}</td>
         <td>${isWaiting(e) ? fmtShort(e.last_checked) : "—"}</td>
       </tr>`;
     });
     $("#caseTable tbody").innerHTML = rows.length ? rows.join("") : `<tr><td colspan="12">No cases match these filters.</td></tr>`;
-    $("#showMore").hidden = list.length <= shown;
   }
 
   /* ---------- Estimate ---------- */
@@ -682,7 +859,9 @@ if (typeof module !== "undefined") {
     let cohortNote = "cases received within 45 days of yours";
     if (kaplanMeier(cohort, today).n < 8) { cohort = entries; cohortNote = "all reported cases"; }
     const km = kaplanMeier(cohort, today);
-    const { highest } = frontOfLine(entries);
+    // Expedited approvals skip the line, so compare against the highest regular approval here.
+    const fl = frontOfLine(entries);
+    const highest = fl.highestRegular || fl.highest;
 
     const lines = [];
     lines.push(`<p class="est-big">You've waited ${w} days since your receipt date.</p>`);
@@ -725,13 +904,14 @@ if (typeof module !== "undefined") {
             return `<tr${e.block === block ? ' class="row-hl"' : ""}>
               <td class="b">${esc(e.block)}</td><td>${fmtDate(e.receipt_date)}</td><td>${esc(e.state)}</td>
               <td>${esc(CENTER_SHORT[e.service_center] || e.service_center)}</td><td>${statusPill(e)}</td>
-              <td>${fmtDate(e.approval_date)}</td><td>${isApproved(e) ? d : isWaiting(e) ? `${d} so far` : "—"}</td></tr>`;
+              <td>${fmtDate(e.approval_date)}</td><td>${isApproved(e) ? (d ?? "—") : isWaiting(e) ? `${d} so far` : "—"}</td></tr>`;
           }).join("")}</tbody>
         </table></div>
       </div>` : `<p>No cases within 3 blocks of yours yet.</p>`;
 
     $("#estimateResult").innerHTML = `<div class="est"><div class="est-lines">${lines.join("")}</div>${caution}${nearTable}</div>`;
     renderStrip();
+    renderBlockBars();
     renderKM();
     renderBlocks();
     renderCases();
@@ -882,6 +1062,9 @@ if (typeof module !== "undefined") {
     need(!!d.receipt_date && d.receipt_date <= today, "receipt_date", "Choose a receipt date that isn't in the future.");
     need(!!d.state, "state", "Choose your state.");
     need(!!d.app_type, "app_type", "Choose initial or renewal.");
+    // Required for new cases. Older entries saved without a country can still be updated without one.
+    const countryOptional = mode === "update" && editing && !editing.country;
+    need(!!d.country || countryOptional, "country", "Choose your country of birth.");
     need(!!d.service_center, "service_center", "Choose a service center, or Unknown.");
     need(!d.bio_date || !d.receipt_date || d.bio_date >= d.receipt_date, "bio_date", "Biometrics can't be before the receipt date.");
     need(!!d.status, "status", "Choose your current status.");
@@ -1102,11 +1285,10 @@ if (typeof module !== "undefined") {
     $$("[data-close-link]").forEach(a => a.addEventListener("click", () => dlg().close()));
 
     const filters = $("#filters");
-    filters.addEventListener("input", () => { shown = PAGE_SIZE; renderCases(); });
-    filters.addEventListener("change", () => { shown = PAGE_SIZE; renderCases(); });
-    filters.addEventListener("reset", () => setTimeout(() => { shown = PAGE_SIZE; renderCases(); }));
+    filters.addEventListener("input", () => renderCases());
+    filters.addEventListener("change", () => renderCases());
+    filters.addEventListener("reset", () => setTimeout(renderCases));
     filters.block.addEventListener("input", ev => { ev.target.value = ev.target.value.replace(/\D/g, "").slice(0, 3); });
-    $("#showMore").addEventListener("click", () => { shown += PAGE_SIZE; renderCases(); });
   }
 
   // Each step runs on its own, so one problem can't break the rest of the page.
