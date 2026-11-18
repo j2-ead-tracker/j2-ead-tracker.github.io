@@ -745,8 +745,6 @@ if (typeof module !== "undefined") {
       return `<strong>Both dates work about the same.</strong> The middle half of approvals came between ${bText}, and between ${rText}.`;
     }
     return b.width < r.width
-      ? `<strong>The biometrics date is the better guide.</strong> The middle half of approvals came between ${bText}, but between ${rText}.`
-      : `<strong>The receipt date is the better guide.</strong> The middle half of approvals came between ${rText}, but between ${bText}.`;
   }
 
   function kmPath(km, x, y) {
