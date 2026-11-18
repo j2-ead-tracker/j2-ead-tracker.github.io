@@ -142,15 +142,18 @@ function waitDays(e, today) {
 // Kaplan-Meier estimate of time to approval.
 // Approved cases are events. Waiting cases are right-censored at their last check-in.
 // Denied cases are left out.
-function kaplanMeier(entries, today) {
+// start: which date the clock starts from, "receipt_date" (default) or "bio_date".
+function kaplanMeier(entries, today, start = "receipt_date") {
   const obs = [];
   for (const e of entries) {
-    if (!e.receipt_date || isDenied(e)) continue;
+    const from = e[start];
+    if (!from || parseISO(from) === null || isDenied(e)) continue;
+    if (from > today) continue;  // biometrics appointment hasn't happened yet
     if (isApproved(e) && !hasApprovalDate(e)) continue;  // approved, but we don't know when
     const approved = isApproved(e);
     if (!approved && !isWaiting(e)) continue;
-    const t = approved ? daysBetween(e.receipt_date, e.approval_date)
-                       : daysBetween(e.receipt_date, e.last_checked || today);
+    const t = approved ? daysBetween(from, e.approval_date)
+                       : daysBetween(from, e.last_checked || today);
     if (t === null || t < 0) continue;
     obs.push({ t, ev: approved ? 1 : 0 });
   }
@@ -221,7 +224,7 @@ function blockSummary(entries) {
       medianDays: median(approved.filter(hasApprovalDate).map(e => daysBetween(e.receipt_date, e.approval_date))),
       latestApproval: approved.filter(hasApprovalDate).map(e => e.approval_date).sort().pop() || null
     };
-  }).sort((a, b) => Number(b.block) - Number(a.block));
+  }).sort((a, b) => Number(a.block) - Number(b.block));
 }
 
 // highest: highest block with any approval (expedited included).
@@ -260,11 +263,12 @@ if (typeof module !== "undefined") {
   const ROWS_DEFAULT = 5;     // no filter picked
   const ROWS_FILTERED = 10;   // at least one filter picked under "All cases"
   const BLOCK_ROWS = 5;
-  const APP_VERSION = "1.3.0";
+  const APP_VERSION = "1.4.0";
 
   let entries = [];
   let myBlock = null;
   let myWait = null;
+  let showAllBlocks = false;
 
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -693,72 +697,138 @@ if (typeof module !== "undefined") {
     box.scrollLeft = Math.max(0, (m.l + (focus - min - 6) * slot) * scale);
   }
 
+  // Two curves: days counted from the receipt date, and from the biometrics date.
+  // The steeper curve (approvals bunched in a narrower window) is the better guide.
   function renderKM() {
     const today = todayISO();
-    const km = kaplanMeier(entries, today);
+    const kmR = kaplanMeier(entries, today, "receipt_date");
+    const kmB = kaplanMeier(entries, today, "bio_date");
     const box = $("#kmChart");
-    if (!km.n) {
+    const verdict = $("#kmVerdict");
+    if (!kmR.n) {
       box.innerHTML = `<p class="hint">The chart appears once cases are added.</p>`;
       $("#milestones").innerHTML = "";
+      if (verdict) verdict.textContent = "";
       return;
     }
-    box.innerHTML = kmSvg(km, myWait);
-    $("#milestones").innerHTML = [60, 90, 120, 150, 180].map(d =>
-      `<div><dt>Approved by day ${d}</dt><dd>${pct(km.approvedBy(d))}</dd></div>`
-    ).join("");
+    box.innerHTML = kmSvg(kmR, kmB, myWait);
+    if (verdict) verdict.innerHTML = kmVerdict(kmR, kmB);
+
+    const days = [30, 60, 90, 120, 150, 180];
+    const row = (label, km, cls) => `<tr><th scope="row"><span class="sw-line ${cls}"></span>${label}</th>${
+      days.map(d => `<td>${km.n ? pct(km.approvedBy(d)) : "—"}</td>`).join("")}</tr>`;
+    $("#milestones").innerHTML = `<div class="table-scroll"><table class="data mile">
+      <thead><tr><th scope="col">Approved by</th>${days.map(d => `<th scope="col">Day ${d}</th>`).join("")}</tr></thead>
+      <tbody>${row("After receipt", kmR, "rec")}${row("After biometrics", kmB, "bio")}</tbody>
+    </table></div>`;
   }
 
-  function kmSvg(km, youDays) {
+  // Middle half of approvals: from the day 25% were approved to the day 75% were.
+  function middleHalf(km) {
+    const a = km.dayFor(0.25), b = km.dayFor(0.75);
+    return a === null || b === null ? null : { a, b, width: b - a };
+  }
+
+  function kmVerdict(kmR, kmB) {
+    const MIN = 8;  // approvals needed on each line before comparing
+    if (kmB.events < MIN || kmR.events < MIN) {
+      return `Not enough approvals with a biometrics date yet to say which date matters more (${kmB.events} so far, ${MIN} needed). Adding your biometrics date helps.`;
+    }
+    const r = middleHalf(kmR), b = middleHalf(kmB);
+    if (!r || !b) {
+      return `So far, half were approved by day ${kmR.median ?? "?"} after receipt and by day ${kmB.median ?? "?"} after biometrics. It's too early to say which date matters more.`;
+    }
+    const rText = `day ${r.a} and day ${r.b} after receipt (a ${r.width}-day window)`;
+    const bText = `day ${b.a} and day ${b.b} after biometrics (a ${b.width}-day window)`;
+    const diff = Math.abs(r.width - b.width);
+    if (diff <= 5) {
+      return `<strong>Both dates work about the same.</strong> The middle half of approvals came between ${bText}, and between ${rText}.`;
+    }
+    return b.width < r.width
+      ? `<strong>The biometrics date is the better guide.</strong> The middle half of approvals came between ${bText}, but between ${rText}.`
+      : `<strong>The receipt date is the better guide.</strong> The middle half of approvals came between ${rText}, but between ${bText}.`;
+  }
+
+  function kmPath(km, x, y) {
+    let d = `M${x(0)},${y(0)}`;
+    for (const st of km.steps.slice(1)) d += ` H${x(st.t)} V${y(1 - st.S)}`;
+    return `${d} H${x(km.maxT)}`;
+  }
+
+  function kmSvg(kmR, kmB, youDays) {
     const W = 760, H = 300, m = { l: 48, r: 20, t: 20, b: 44 };
-    const span = Math.max(km.maxT, youDays || 0, 120);
+    const span = Math.max(kmR.maxT, kmB.maxT, youDays || 0, 120);
     const xmax = Math.min(Math.ceil(span / 30) * 30, 390);
     const x = t => m.l + (Math.min(t, xmax) / xmax) * (W - m.l - m.r);
     const y = p => m.t + (1 - p) * (H - m.t - m.b);
     let g = "";
     for (const p of [0, .25, .5, .75, 1]) {
-      g += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${y(p)}" y2="${y(p)}"/>`;
+      g += `<line class="${p === .5 ? "half" : "grid"}" x1="${m.l}" x2="${W - m.r}" y1="${y(p)}" y2="${y(p)}"/>`;
       g += `<text x="${m.l - 8}" y="${y(p) + 4}" text-anchor="end">${p * 100}%</text>`;
     }
     for (let t = 0; t <= xmax; t += 30) {
       g += `<text x="${x(t)}" y="${H - m.b + 18}" text-anchor="middle">${t}</text>`;
     }
-    g += `<text x="${(m.l + W - m.r) / 2}" y="${H - 6}" text-anchor="middle">Days since receipt date</text>`;
+    g += `<text x="${(m.l + W - m.r) / 2}" y="${H - 6}" text-anchor="middle">Days since the receipt date (green) or the biometrics date (purple)</text>`;
     g += `<line class="axis" x1="${m.l}" x2="${W - m.r}" y1="${y(0)}" y2="${y(0)}"/>`;
 
-    let d = `M${x(0)},${y(0)}`;
-    let prev = 0;
-    for (const st of km.steps.slice(1)) {
-      d += ` H${x(st.t)} V${y(1 - st.S)}`;
-      prev = 1 - st.S;
-    }
-    d += ` H${x(km.maxT)}`;
-    const area = `${d} V${y(0)} Z`;
-    g += `<path class="area" d="${area}"/><path class="curve" d="${d}"/>`;
+    g += `<path class="curve" d="${kmPath(kmR, x, y)}"/>`;
+    if (kmB.n) g += `<path class="curve-bio" d="${kmPath(kmB, x, y)}"/>`;
 
-    if (km.median !== null) {
-      const mx = x(km.median);
-      g += `<line class="mark-line" x1="${mx}" x2="${mx}" y1="${y(0)}" y2="${y(.5)}"/>`;
-      g += `<line class="mark-line" x1="${m.l}" x2="${mx}" y1="${y(.5)}" y2="${y(.5)}"/>`;
-      const anchor = mx > W * 0.7 ? "end" : "start";
-      g += `<text class="mark-label" x="${mx + (anchor === "start" ? 8 : -8)}" y="${y(.5) - 8}" text-anchor="${anchor}">Half approved by day ${km.median}</text>`;
-    }
+    // Where each line crosses 50%.
+    const medians = [];
+    if (kmR.median !== null) medians.push({ t: kmR.median, cls: "dot-rec", label: `day ${kmR.median}` });
+    if (kmB.n && kmB.median !== null) medians.push({ t: kmB.median, cls: "dot-bio", label: `day ${kmB.median}` });
+    medians.sort((a, b) => a.t - b.t);
+    medians.forEach((md, i) => {
+      const mx = x(md.t);
+      g += `<circle class="${md.cls}" cx="${mx}" cy="${y(.5)}" r="5"/>`;
+      // A rising line leaves the space above-left and below-right of its 50% point empty.
+      // The first label goes above-left, the second below-right, so neither sits on a line.
+      g += i === 0
+        ? `<text class="mark-label ${md.cls}-label" x="${mx - 9}" y="${y(.5) - 9}" text-anchor="end">${md.label}</text>`
+        : `<text class="mark-label ${md.cls}-label" x="${mx + 9}" y="${y(.5) + 19}" text-anchor="start">${md.label}</text>`;
+    });
+    g += `<text class="half-label" x="${W - m.r}" y="${y(.5) - 6}" text-anchor="end">Half approved</text>`;
+
     if (youDays !== null && youDays !== undefined && youDays >= 0) {
       const yx = x(youDays);
       g += `<line class="you-line" x1="${yx}" x2="${yx}" y1="${y(0)}" y2="${y(1)}"/>`;
       const anchor = yx > W * 0.75 ? "end" : "start";
-      g += `<text class="you-label" x="${yx + (anchor === "start" ? 6 : -6)}" y="${y(1) + 14}" text-anchor="${anchor}">You: day ${youDays}</text>`;
+      g += `<text class="you-label" x="${yx + (anchor === "start" ? 6 : -6)}" y="${y(1) + 14}" text-anchor="${anchor}">You: day ${youDays} since receipt</text>`;
     }
-    const desc = `Share of applicants approved by days since receipt. Half approved by day ${km.median ?? "not reached yet"}. Based on ${km.n} cases, ${km.events} approved.`;
+    const desc = `Share of applicants approved by days since receipt (half by day ${kmR.median ?? "not reached"}) and by days since biometrics (half by day ${kmB.median ?? "not reached"}).`;
     return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(desc)}">${g}</svg>
-      <p class="hint">Based on ${km.n} cases, ${km.events} approved. Denied cases aren't included.</p>`;
+      <p class="hint">Green line: ${kmR.n} cases, ${kmR.events} approved. Purple line: ${kmB.n} cases with a biometrics date, ${kmB.events} approved. Denied cases aren't included.</p>`;
   }
 
+  // Lowest block first. Blocks where nobody is waiting anymore (everyone approved or denied)
+  // are "finished" and hidden by default, so the table starts where approvals are happening now.
   function renderBlocks() {
-    const all = blockSummary(entries);
-    const rows = all.slice(0, BLOCK_ROWS);
-    $("#blockCount").textContent = all.length > rows.length
-      ? `Showing the ${rows.length} highest blocks of ${all.length}. Tap a square or bar above, or filter "All cases" by block, to see any block.`
-      : "";
+    const all = blockSummary(entries);  // only blocks with at least one report
+    const open = all.filter(r => r.waiting > 0);
+    const finished = all.length - open.length;
+    const pool = showAllBlocks || !open.length ? all : open;
+    const rows = showAllBlocks ? pool : pool.slice(0, BLOCK_ROWS);
+    const toggle = $("#blockToggle");
+    const scroll = $("#blockTable").closest(".table-scroll");
+    if (scroll) scroll.classList.toggle("tall", showAllBlocks);
+
+    let note = "";
+    if (showAllBlocks) {
+      note = `Showing all ${all.length} blocks that have reports, lowest first.`;
+    } else if (!open.length && all.length) {
+      note = `Everyone who reported is approved or denied. Showing the lowest ${rows.length} blocks.`;
+    } else if (all.length) {
+      note = `Showing the ${rows.length} lowest blocks where people are still waiting.`;
+      if (finished) note += ` ${finished} block${finished > 1 ? "s" : ""} where everyone is approved ${finished > 1 ? "are" : "is"} hidden.`;
+    }
+    $("#blockCount").textContent = note;
+    if (toggle) {
+      toggle.hidden = all.length <= rows.length && !showAllBlocks;
+      toggle.textContent = showAllBlocks ? "Show fewer blocks" : `Show all ${all.length} blocks`;
+    }
+
     $("#blockTable tbody").innerHTML = rows.length ? rows.map(r => `
       <tr${myBlock === r.block ? ' class="row-hl"' : ""}>
         <td class="b">${esc(r.block)}</td>
@@ -1283,6 +1353,9 @@ if (typeof module !== "undefined") {
     }
     $$("dialog [data-close]").forEach(b => b.addEventListener("click", () => b.closest("dialog").close()));
     $$("[data-close-link]").forEach(a => a.addEventListener("click", () => dlg().close()));
+
+    const blockToggle = $("#blockToggle");
+    if (blockToggle) blockToggle.addEventListener("click", () => { showAllBlocks = !showAllBlocks; renderBlocks(); });
 
     const filters = $("#filters");
     filters.addEventListener("input", () => renderCases());
